@@ -1,0 +1,236 @@
+.card-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: 100%;
+}
+
+.loyalty-card {
+  background: linear-gradient(145deg, #1e293b, #0f172a);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-lg);
+  padding: 24px 20px;
+  box-shadow: var(--shadow-card);
+  position: relative;
+  overflow: hidden;
+  transition: transform var(--transition-normal);
+}
+
+.card-top-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.customer-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.customer-name {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.01em;
+}
+
+.customer-phone {
+  font-size: 0.82rem;
+  font-family: var(--font-family-mono);
+  color: var(--text-secondary);
+}
+
+.cycle-badge {
+  background: rgba(251, 191, 36, 0.12);
+  border: 1px solid var(--border-card);
+  color: var(--color-gold);
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.birthday-alert {
+  background: linear-gradient(90deg, rgba(244, 63, 94, 0.15), rgba(251, 191, 36, 0.15));
+  border: 1px solid var(--color-ruby);
+  border-radius: var(--radius-md);
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.birthday-icon {
+  font-size: 1.3rem;
+  line-height: 1;
+}
+
+.birthday-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.stamps-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.stamp-slot {
+  aspect-ratio: 1;
+  background: var(--bg-surface);
+  border: 2px dashed var(--border-subtle);
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: all var(--transition-fast);
+  user-select: none;
+}
+
+.stamp-slot.stamped {
+  background: radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%);
+  border: 2px solid var(--color-gold);
+  box-shadow: var(--shadow-glow);
+  animation: stampPop 350ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.stamp-slot.reward-slot {
+  border-color: var(--color-emerald);
+}
+
+.stamp-slot.reward-slot.stamped {
+  border: 2px solid var(--color-emerald);
+  box-shadow: 0 0 20px var(--color-emerald-glow);
+}
+
+.stamp-number {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: var(--text-muted);
+}
+
+.stamp-icon {
+  display: none;
+  width: 28px;
+  height: 28px;
+  color: var(--color-gold);
+}
+
+.stamp-slot.stamped .stamp-number {
+  display: none;
+}
+
+.stamp-slot.stamped .stamp-icon {
+  display: block;
+}
+
+.stamp-slot.reward-slot.stamped .stamp-icon {
+  color: var(--color-emerald);
+}
+
+.card-footer-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 14px;
+  border-top: 1px solid var(--border-subtle);
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+.progress-counter {
+  font-weight: 700;
+  color: var(--color-gold);
+}
+
+.reward-banner {
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(15, 23, 42, 0.9));
+  border: 1px solid var(--color-emerald);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 8px 24px var(--color-emerald-glow);
+  animation: slideUp 300ms ease;
+}
+
+.reward-banner-title {
+  font-size: 1.25rem;
+  font-weight: 800;
+  color: var(--color-emerald);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.reward-banner-desc {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.btn-reward {
+  width: 100%;
+  min-height: var(--touch-target-min);
+  background: var(--color-emerald);
+  color: #030712;
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 1rem;
+  font-weight: 800;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: filter var(--transition-fast), transform var(--transition-fast);
+}
+
+.btn-reward:active {
+  transform: scale(0.98);
+  filter: brightness(0.9);
+}
+
+.claim-instructions {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  font-size: 0.85rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  text-align: center;
+}
+
+@keyframes stampPop {
+  0% {
+    transform: scale(0.5) rotate(-15deg);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.15) rotate(4deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 8px rgba(244, 63, 94, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 16px rgba(244, 63, 94, 0.5);
+  }
+}

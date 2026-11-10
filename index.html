@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#030712">
+  <meta name="description" content="Tarjeta de fidelizacion digital interactiva para clientes">
+  <title>FidelizaCard</title>
+
+  <link rel="stylesheet" href="styles/variables.css">
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/card.css">
+  <link rel="stylesheet" href="styles/modals.css">
+</head>
+<body>
+  <div id="app" class="app-layout">
+    <header class="app-header">
+      <div class="brand-badge">
+        <span class="brand-dot"></span>
+        <span class="brand-name">FidelizaCard</span>
+      </div>
+      <div id="header-actions" class="header-actions"></div>
+    </header>
+
+    <main id="main-content" class="main-content">
+      <div class="loader-view">
+        <div class="spinner"></div>
+      </div>
+    </main>
+
+    <footer class="app-footer">
+      <p class="footer-text">Sistema de Sellos Digitales</p>
+    </footer>
+  </div>
+
+  <div id="modal-container" class="modal-overlay hidden" aria-hidden="true"></div>
+  <div id="toast-container" class="toast-stack" aria-live="polite"></div>
+
+  <script type="module" src="scripts/app.js"></script>
+</body>
+</html>
