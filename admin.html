@@ -4,8 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#030712">
-  <meta name="description" content="Panel de administracion y despacho para FidelizaCard">
-  <title>FidelizaCard - Panel de Control</title>
+  <meta name="description" content="Panel operativo de mostrador y despacho para FidelizaCard">
+  <title>FidelizaCard - Operativa de Caja</title>
 
   <link rel="stylesheet" href="styles/variables.css">
   <link rel="stylesheet" href="styles/main.css">
@@ -20,7 +20,7 @@
         </div>
         <div>
           <h1 id="header-business-name" class="admin-title">FidelizaCard</h1>
-          <p class="admin-subtitle">Panel de Control</p>
+          <p class="admin-subtitle">Operativa de Mostrador</p>
         </div>
       </div>
       <a href="index.html" class="btn-preview-card" title="Ver Tarjeta de Cliente">
@@ -30,8 +30,8 @@
 
     <nav class="admin-tabs" aria-label="Secciones del panel">
       <button type="button" class="tab-btn active" data-tab="tab-delivery">Despacho</button>
+      <button type="button" class="tab-btn" data-tab="tab-restore">Reposicion</button>
       <button type="button" class="tab-btn" data-tab="tab-qr">QR Mostrador</button>
-      <button type="button" class="tab-btn" data-tab="tab-settings">Marca & Logo</button>
     </nav>
 
     <main class="admin-main">
@@ -39,8 +39,8 @@
       <section id="tab-delivery" class="tab-content active">
         <div class="admin-card">
           <div class="card-header">
-            <h2 class="section-title">Generar Sello Delivery</h2>
-            <p class="section-desc">Envia el enlace de sello por WhatsApp al confirmar un pedido.</p>
+            <h2 class="section-title">Despacho de Sello Delivery</h2>
+            <p class="section-desc">Envia un sello unico por WhatsApp al confirmar un pedido.</p>
           </div>
 
           <form id="delivery-form" class="admin-form">
@@ -61,7 +61,7 @@
             </div>
 
             <div class="field-group">
-              <label class="field-label" for="delivery-order-id">Codigo de Boleta / Pedido (Opcional)</label>
+              <label class="field-label" for="delivery-order-id">Codigo de Boleta o Pedido (Opcional)</label>
               <input
                 type="text"
                 id="delivery-order-id"
@@ -88,12 +88,78 @@
         </div>
       </section>
 
-      <!-- Seccion 2: QR Mostrador -->
+      <!-- Seccion 2: Reposicion de Sellos (Presencial o Remota) -->
+      <section id="tab-restore" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Reposicion de Sellos</h2>
+            <p class="section-desc">Restaura sellos acumulados si el cliente cambio de telefono o borro datos.</p>
+          </div>
+
+          <form id="restore-form" class="admin-form">
+            <div class="field-group">
+              <label class="field-label" for="restore-stamps-count">Cantidad de sellos a restituir</label>
+              <select id="restore-stamps-count" class="field-input field-select">
+                <option value="1">1 Sello</option>
+                <option value="2">2 Sellos</option>
+                <option value="3">3 Sellos</option>
+                <option value="4" selected>4 Sellos</option>
+                <option value="5">5 Sellos</option>
+                <option value="6">6 Sellos</option>
+                <option value="7">7 Sellos</option>
+                <option value="8">8 Sellos</option>
+              </select>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="restore-phone">WhatsApp del Cliente (Solo para envio remoto)</label>
+              <div class="input-with-prefix">
+                <span class="input-prefix">+51</span>
+                <input
+                  type="tel"
+                  id="restore-phone"
+                  class="field-input prefix-padding"
+                  placeholder="987654321"
+                  pattern="[0-9]{9}"
+                  inputmode="numeric"
+                >
+              </div>
+            </div>
+
+            <div class="actions-stack">
+              <button type="button" id="btn-show-restore-qr" class="btn-primary">
+                <span class="btn-icon">📲</span>
+                <span>Mostrar QR en Pantalla</span>
+              </button>
+              <button type="button" id="btn-send-restore-whatsapp" class="btn-whatsapp">
+                <span class="btn-icon">💬</span>
+                <span>Enviar por WhatsApp</span>
+              </button>
+              <button type="button" id="btn-copy-restore-link" class="btn-secondary">
+                <span>Copiar Enlace</span>
+              </button>
+            </div>
+          </form>
+
+          <!-- Visor de QR temporal en pantalla del cajero -->
+          <div id="restore-qr-box" class="qr-display-container hidden" style="margin-top: 18px;">
+            <div class="qr-canvas-frame">
+              <canvas id="restore-qr-canvas" width="220" height="220"></canvas>
+            </div>
+            <p id="restore-qr-caption" class="qr-target-text">Acerca la camara para recibir los sellos</p>
+            <button type="button" id="btn-hide-restore-qr" class="btn-secondary" style="margin-top: 10px;">
+              <span>Ocultar QR</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 3: QR Mostrador -->
       <section id="tab-qr" class="tab-content hidden">
         <div class="admin-card">
           <div class="card-header">
             <h2 class="section-title">Codigo QR de Mostrador</h2>
-            <p class="section-desc">Exhibelo en barra o caja para que el cliente lo escanee al pagar.</p>
+            <p class="section-desc">Exhibelo en barra o caja para que el cliente lo escanee al pagar en salon.</p>
           </div>
 
           <div class="qr-display-container">
@@ -116,73 +182,6 @@
               Imprime este codigo en formato A6 (10x15 cm) o adhesivo plastificado para colocarlo junto al POS o sobre la barra de atencion.
             </p>
           </div>
-        </div>
-      </section>
-
-      <!-- Seccion 3: Ajustes de Marca & Logo -->
-      <section id="tab-settings" class="tab-content hidden">
-        <div class="admin-card">
-          <div class="card-header">
-            <h2 class="section-title">Ajustes del Negocio</h2>
-            <p class="section-desc">Personaliza la identidad que vera el cliente en su tarjeta digital.</p>
-          </div>
-
-          <form id="settings-form" class="admin-form">
-            <!-- Subir Logo -->
-            <div class="field-group">
-              <label class="field-label">Logo del Local</label>
-              <div class="logo-uploader-row">
-                <div id="settings-logo-preview" class="logo-preview-box">
-                  <span class="logo-placeholder-text">Sin Logo</span>
-                </div>
-                <div class="logo-file-controls">
-                  <label for="logo-file-input" class="btn-file-select">
-                    <span>Seleccionar Imagen</span>
-                  </label>
-                  <input type="file" id="logo-file-input" accept="image/*" class="hidden-file-input">
-                  <button type="button" id="btn-remove-logo" class="btn-remove-text hidden">Eliminar</button>
-                </div>
-              </div>
-            </div>
-
-            <!-- Nombre Comercial -->
-            <div class="field-group">
-              <label class="field-label" for="setting-business-name">Nombre Comercial</label>
-              <input
-                type="text"
-                id="setting-business-name"
-                class="field-input"
-                placeholder="Ej. Dulce Fusion"
-                required
-              >
-            </div>
-
-            <!-- Meta de Sellos -->
-            <div class="field-group">
-              <label class="field-label" for="setting-target-stamps">Sellos para Ganar Premio</label>
-              <select id="setting-target-stamps" class="field-input field-select">
-                <option value="6">6 Sellos</option>
-                <option value="8" selected>8 Sellos (Recomendado)</option>
-                <option value="10">10 Sellos</option>
-              </select>
-            </div>
-
-            <!-- Descripcion del Premio -->
-            <div class="field-group">
-              <label class="field-label" for="setting-reward-desc">Premio al Completar</label>
-              <input
-                type="text"
-                id="setting-reward-desc"
-                class="field-input"
-                placeholder="Ej. 1 Combo Clasico o Postre Gratis"
-                required
-              >
-            </div>
-
-            <button type="submit" class="btn-primary">
-              <span>Guardar Ajustes</span>
-            </button>
-          </form>
         </div>
       </section>
     </main>

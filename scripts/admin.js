@@ -1,389 +1,306 @@
 /**
- * Controlador de la Suite de Administracion - FidelizaCard
+ * Logica operativa de mostrador y despacho - FidelizaCard (Fase 1 Llave en Mano)
  * Responsabilidades:
- * - Gestion de despacho por WhatsApp (generacion de tokens y enlaces)
- * - Renderizado y descarga de QR de mostrador en alta resolucion
- * - Configuracion de marca, reglas de juego y optimizacion de logo a Base64
+ * - Sincronizacion de marca e imagotipo desde scripts/config.js
+ * - Navegacion por pestanas operativas (Despacho, Reposicion, QR Mostrador)
+ * - Despacho de sellos por delivery via WhatsApp (?claim=PED-XXX)
+ * - Reposicion directa de sellos por QR temporal o WhatsApp (?setStamps=X)
+ * - Generacion y descarga del QR estatico para acrilico de mostrador
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
 import { qs, qsa, showToast, triggerHaptic } from './utils/dom.js';
+import { getBusinessConfig } from './config.js';
 import { renderQRCode, downloadQRCode } from './utils/qr-generator.js';
 
-const STORAGE_KEY_CONFIG = 'fideliza_config';
-const DEFAULT_CONFIG = {
-  businessName: 'FidelizaCard',
-  businessLogo: '',
-  targetStamps: 8,
-  rewardDescription: '1 Premio Sorpresa Gratis'
-};
-
-let currentLogoBase64 = '';
-let lastGeneratedUrl = '';
-
 document.addEventListener('DOMContentLoaded', function () {
-  setupTabs();
-  setupDeliverySection();
-  setupQrSection();
-  setupSettingsSection();
-  refreshQrCode();
+  initAdmin();
 });
 
-function getConfig() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_CONFIG);
-    if (!raw) {
-      return Object.assign({}, DEFAULT_CONFIG);
-    }
-    const parsed = JSON.parse(raw);
-    return {
-      businessName: parsed.businessName ? parsed.businessName : DEFAULT_CONFIG.businessName,
-      businessLogo: parsed.businessLogo ? parsed.businessLogo : '',
-      targetStamps: parsed.targetStamps ? Number(parsed.targetStamps) : DEFAULT_CONFIG.targetStamps,
-      rewardDescription: parsed.rewardDescription ? parsed.rewardDescription : DEFAULT_CONFIG.rewardDescription
-    };
-  } catch (err) {
-    return Object.assign({}, DEFAULT_CONFIG);
-  }
+function initAdmin() {
+  renderBrandHeader();
+  setupTabs();
+  setupDeliveryDispatch();
+  setupStampsRestore();
+  setupCounterQr();
 }
 
-function saveConfig(config) {
-  try {
-    localStorage.setItem(STORAGE_KEY_CONFIG, JSON.stringify(config));
-    return true;
-  } catch (err) {
-    return false;
+function renderBrandHeader() {
+  const config = getBusinessConfig();
+  const titleEl = qs('#header-business-name');
+  if (titleEl) {
+    titleEl.textContent = config.name ? config.name : 'FidelizaCard';
+  }
+
+  const logoBadge = qs('#admin-logo-preview');
+  if (logoBadge) {
+    if (config.logo) {
+      logoBadge.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = config.logo;
+      img.alt = config.name;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      img.style.borderRadius = '50%';
+      logoBadge.appendChild(img);
+    } else {
+      const fallback = logoBadge.querySelector('.admin-logo-fallback');
+      if (fallback) {
+        const initials = config.name ? config.name.slice(0, 2).toUpperCase() : 'FC';
+        fallback.textContent = initials;
+      }
+    }
   }
 }
 
 function setupTabs() {
   const tabButtons = qsa('.tab-btn');
-  const contents = qsa('.tab-content');
+  const tabContents = qsa('.tab-content');
 
-  tabButtons.forEach(function (btn) {
-    btn.addEventListener('click', function () {
-      const targetId = btn.dataset.tab;
+  for (let i = 0; i < tabButtons.length; i++) {
+    tabButtons[i].addEventListener('click', function () {
+      const targetId = this.getAttribute('data-tab');
 
-      tabButtons.forEach(function (b) {
-        b.classList.remove('active');
-      });
-      contents.forEach(function (c) {
-        c.classList.add('hidden');
-        c.classList.remove('active');
-      });
-
-      btn.classList.add('active');
-      const targetContent = qs('#' + targetId);
-      if (targetContent) {
-        targetContent.classList.remove('hidden');
-        targetContent.classList.add('active');
+      for (let j = 0; j < tabButtons.length; j++) {
+        tabButtons[j].classList.remove('active');
+      }
+      for (let k = 0; k < tabContents.length; k++) {
+        tabContents[k].classList.remove('active');
+        tabContents[k].classList.add('hidden');
       }
 
-      if (targetId === 'tab-qr') {
-        refreshQrCode();
+      this.classList.add('active');
+      const activeContent = qs('#' + targetId);
+      if (activeContent) {
+        activeContent.classList.remove('hidden');
+        activeContent.classList.add('active');
       }
+
+      triggerHaptic(30);
     });
-  });
+  }
 }
 
-function getCustomerCardUrl() {
-  const currentUrl = window.location.href;
-  return currentUrl.replace(/admin\.html.*$/, 'index.html');
+function getBaseClientUrl() {
+  const config = getBusinessConfig();
+  if (config.appUrl) {
+    let base = config.appUrl.trim();
+    if (!base.endsWith('/')) {
+      base = base + '/';
+    }
+    return base + 'index.html';
+  }
+  const loc = window.location;
+  let path = loc.pathname;
+  if (path.indexOf('admin.html') !== -1) {
+    path = path.replace('admin.html', 'index.html');
+  } else if (path.endsWith('/')) {
+    path = path + 'index.html';
+  }
+  return loc.origin + path;
 }
 
-function refreshQrCode() {
-  const canvas = qs('#qr-canvas');
+function renderQr(canvas, text) {
   if (!canvas) {
     return;
   }
-  const targetUrl = getCustomerCardUrl();
-  renderQRCode(canvas, targetUrl);
+  renderQRCode(canvas, text);
 }
 
-function setupQrSection() {
-  const downloadBtn = qs('#btn-download-qr');
-  if (!downloadBtn) {
-    return;
-  }
-
-  downloadBtn.addEventListener('click', function () {
-    const canvas = qs('#qr-canvas');
-    const config = getConfig();
-    const cleanName = config.businessName.toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const filename = 'qr-mostrador-' + (cleanName ? cleanName : 'local') + '.png';
-    downloadQRCode(canvas, filename);
-    triggerHaptic(40);
-    showToast('Descargando QR para imprimir', 'success');
-  });
-}
-
-function generateClaimToken(orderId) {
-  const prefix = orderId ? String(orderId).trim().toUpperCase() : 'DEL';
-  const randomPart = Math.random().toString(36).substring(2, 6).toUpperCase();
-  const timePart = Date.now().toString().slice(-4);
-  return prefix + '-' + randomPart + timePart;
-}
-
-function setupDeliverySection() {
+function setupDeliveryDispatch() {
   const form = qs('#delivery-form');
   const copyBtn = qs('#btn-copy-link');
 
   if (form) {
-    form.addEventListener('submit', function (event) {
-      event.preventDefault();
-      handleDeliverySubmit();
+    form.addEventListener('submit', function (e) {
+      e.preventDefault();
+      const phoneInput = qs('#delivery-phone');
+      const orderInput = qs('#delivery-order-id');
+
+      const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
+      if (rawPhone.length < 9) {
+        showToast('Ingresa un numero de WhatsApp valido', 'error');
+        return;
+      }
+
+      let orderCode = orderInput ? orderInput.value.trim() : '';
+      if (!orderCode) {
+        const randomNum = Math.floor(1000 + Math.random() * 9000);
+        orderCode = 'PED-' + randomNum;
+      }
+
+      const clientUrl = getBaseClientUrl() + '?claim=' + encodeURIComponent(orderCode) + '&tel=' + rawPhone;
+      displayLinkPreview(clientUrl);
+
+      const config = getBusinessConfig();
+      const bizName = config.name ? config.name : 'nuestro local';
+      const msg = '¡Hola! Gracias por tu pedido en ' + bizName + '. Suma tu sello aqui: ' + clientUrl;
+      const waUrl = 'https://wa.me/51' + rawPhone + '?text=' + encodeURIComponent(msg);
+
+      triggerHaptic(50);
+      window.open(waUrl, '_blank');
+      showToast('Enlace enviado a WhatsApp', 'success');
     });
   }
 
   if (copyBtn) {
     copyBtn.addEventListener('click', function () {
-      handleCopyLink();
+      const phoneInput = qs('#delivery-phone');
+      const orderInput = qs('#delivery-order-id');
+      const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
+
+      let orderCode = orderInput ? orderInput.value.trim() : '';
+      if (!orderCode) {
+        orderCode = 'PED-' + Math.floor(1000 + Math.random() * 9000);
+      }
+
+      let clientUrl = getBaseClientUrl() + '?claim=' + encodeURIComponent(orderCode);
+      if (rawPhone.length >= 9) {
+        clientUrl = clientUrl + '&tel=' + rawPhone;
+      }
+
+      displayLinkPreview(clientUrl);
+      copyToClipboard(clientUrl, 'Enlace manual copiado al portapapeles');
     });
   }
 }
 
-function handleDeliverySubmit() {
-  const phoneInput = qs('#delivery-phone');
-  const orderInput = qs('#delivery-order-id');
-
-  const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-  const orderId = orderInput ? orderInput.value.trim() : '';
-
-  if (rawPhone.length < 9) {
-    showToast('Ingresa un WhatsApp valido de 9 digitos', 'error');
-    return;
+function displayLinkPreview(url) {
+  const previewBox = qs('#delivery-link-preview');
+  const previewText = qs('#preview-url-text');
+  if (previewBox && previewText) {
+    previewText.textContent = url;
+    previewBox.classList.remove('hidden');
   }
-
-  const token = generateClaimToken(orderId);
-  const baseUrl = getCustomerCardUrl();
-  const claimUrl = baseUrl + '?claim=' + encodeURIComponent(token) + '&tel=' + encodeURIComponent(rawPhone);
-  lastGeneratedUrl = claimUrl;
-
-  showUrlPreview(claimUrl);
-
-  const config = getConfig();
-  const message = '¡Hola! Gracias por tu pedido en ' + config.businessName + ' 🎁.\n' +
-    'Toca aqui para sumar tu sello de hoy a tu tarjeta digital:\n' + claimUrl;
-
-  const waUrl = 'https://wa.me/51' + rawPhone + '?text=' + encodeURIComponent(message);
-  triggerHaptic(40);
-  window.open(waUrl, '_blank');
-  showToast('Enlace generado. Abriendo WhatsApp...', 'success');
 }
 
-function handleCopyLink() {
-  if (!lastGeneratedUrl) {
-    const phoneInput = qs('#delivery-phone');
+function setupStampsRestore() {
+  const countSelect = qs('#restore-stamps-count');
+  const phoneInput = qs('#restore-phone');
+  const btnShowQr = qs('#btn-show-restore-qr');
+  const btnHideQr = qs('#btn-hide-restore-qr');
+  const btnSendWa = qs('#btn-send-restore-whatsapp');
+  const btnCopyLink = qs('#btn-copy-restore-link');
+  const qrBox = qs('#restore-qr-box');
+  const canvas = qs('#restore-qr-canvas');
+  const caption = qs('#restore-qr-caption');
+
+  function buildRestoreUrl() {
+    const stamps = countSelect ? countSelect.value : '1';
+    let url = getBaseClientUrl() + '?setStamps=' + stamps;
     const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-    if (rawPhone.length < 9) {
-      showToast('Ingresa un telefono para generar el enlace', 'error');
-      return;
+    if (rawPhone.length >= 9) {
+      url = url + '&tel=' + rawPhone;
     }
-    const orderInput = qs('#delivery-order-id');
-    const orderId = orderInput ? orderInput.value.trim() : '';
-    const token = generateClaimToken(orderId);
-    lastGeneratedUrl = getCustomerCardUrl() + '?claim=' + encodeURIComponent(token) + '&tel=' + encodeURIComponent(rawPhone);
-    showUrlPreview(lastGeneratedUrl);
+    return { url: url, stamps: stamps, phone: rawPhone };
   }
 
-  navigator.clipboard.writeText(lastGeneratedUrl).then(function () {
-    triggerHaptic(30);
-    showToast('Enlace copiado al portapapeles', 'success');
-  }).catch(function () {
-    showToast('No se pudo copiar automaticamente', 'error');
-  });
-}
-
-function showUrlPreview(url) {
-  const box = qs('#delivery-link-preview');
-  const code = qs('#preview-url-text');
-  if (box && code) {
-    code.textContent = url;
-    box.classList.remove('hidden');
+  if (btnShowQr && qrBox && canvas) {
+    btnShowQr.addEventListener('click', function () {
+      const data = buildRestoreUrl();
+      renderQr(canvas, data.url);
+      if (caption) {
+        caption.textContent = 'Escanea para restablecer ' + data.stamps + ' sellos en la tarjeta';
+      }
+      qrBox.classList.remove('hidden');
+      triggerHaptic(40);
+      showToast('QR de reposicion visible en pantalla', 'info');
+    });
   }
-}
 
-function setupSettingsSection() {
-  const form = qs('#settings-form');
-  const fileInput = qs('#logo-file-input');
-  const removeLogoBtn = qs('#btn-remove-logo');
+  if (btnHideQr && qrBox) {
+    btnHideQr.addEventListener('click', function () {
+      qrBox.classList.add('hidden');
+    });
+  }
 
-  loadSettingsToForm();
-
-  if (fileInput) {
-    fileInput.addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      if (!file) {
+  if (btnSendWa) {
+    btnSendWa.addEventListener('click', function () {
+      const data = buildRestoreUrl();
+      if (data.phone.length < 9) {
+        showToast('Ingresa el WhatsApp del cliente para envio remoto', 'error');
+        if (phoneInput) {
+          phoneInput.focus();
+        }
         return;
       }
-      processLogoFile(file);
+
+      const config = getBusinessConfig();
+      const bizName = config.name ? config.name : 'nuestro local';
+      const msg = '¡Hola! Hemos restablecido tus sellos en ' + bizName + '. Abre este enlace: ' + data.url;
+      const waUrl = 'https://wa.me/51' + data.phone + '?text=' + encodeURIComponent(msg);
+
+      triggerHaptic(50);
+      window.open(waUrl, '_blank');
+      showToast('Enlace de reposicion enviado por WhatsApp', 'success');
     });
   }
 
-  if (removeLogoBtn) {
-    removeLogoBtn.addEventListener('click', function () {
-      currentLogoBase64 = '';
-      const config = getConfig();
-      updateLogoPreviews('', config.businessName);
-      removeLogoBtn.classList.add('hidden');
-      if (fileInput) {
-        fileInput.value = '';
-      }
-    });
-  }
-
-  if (form) {
-    form.addEventListener('submit', function (event) {
-      event.preventDefault();
-      handleSettingsSubmit();
+  if (btnCopyLink) {
+    btnCopyLink.addEventListener('click', function () {
+      const data = buildRestoreUrl();
+      copyToClipboard(data.url, 'Enlace de reposicion copiado');
     });
   }
 }
 
-function processLogoFile(file) {
-  if (!file.type.startsWith('image/')) {
-    showToast('Selecciona un archivo de imagen valido', 'error');
-    return;
+function setupCounterQr() {
+  const canvas = qs('#qr-canvas');
+  const downloadBtn = qs('#btn-download-qr');
+  const tabQrBtn = qs('[data-tab="tab-qr"]');
+
+  function drawCounter() {
+    if (canvas) {
+      const counterUrl = getBaseClientUrl() + '?scan=1';
+      renderQr(canvas, counterUrl);
+    }
   }
 
-  const reader = new FileReader();
-  reader.onload = function (event) {
-    const img = new Image();
-    img.onload = function () {
-      const canvas = document.createElement('canvas');
-      const maxDim = 200;
-      let width = img.width;
-      let height = img.height;
+  drawCounter();
 
-      if (width > height) {
-        if (width > maxDim) {
-          height = Math.round((height * maxDim) / width);
-          width = maxDim;
-        }
-      } else {
-        if (height > maxDim) {
-          width = Math.round((width * maxDim) / height);
-          height = maxDim;
-        }
-      }
+  if (tabQrBtn) {
+    tabQrBtn.addEventListener('click', function () {
+      setTimeout(drawCounter, 50);
+    });
+  }
 
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-
-      currentLogoBase64 = canvas.toDataURL('image/png', 0.85);
-      const config = getConfig();
-      updateLogoPreviews(currentLogoBase64, config.businessName);
-
-      const removeLogoBtn = qs('#btn-remove-logo');
-      if (removeLogoBtn) {
-        removeLogoBtn.classList.remove('hidden');
-      }
-      showToast('Logo optimizado correctamente', 'info');
-    };
-    img.src = event.target.result;
-  };
-  reader.readAsDataURL(file);
+  if (downloadBtn && canvas) {
+    downloadBtn.addEventListener('click', function () {
+      triggerHaptic(50);
+      const config = getBusinessConfig();
+      const safeName = config.name ? config.name.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'fidelizacard';
+      const filename = 'qr-mostrador-' + safeName + '.png';
+      downloadQRCode(canvas, filename);
+      showToast('Descargando imagen QR para acrilico', 'success');
+    });
+  }
 }
 
-function loadSettingsToForm() {
-  const config = getConfig();
-  currentLogoBase64 = config.businessLogo;
-
-  const nameInput = qs('#setting-business-name');
-  const stampsSelect = qs('#setting-target-stamps');
-  const rewardInput = qs('#setting-reward-desc');
-  const removeLogoBtn = qs('#btn-remove-logo');
-
-  if (nameInput) {
-    nameInput.value = config.businessName;
-  }
-  if (stampsSelect) {
-    stampsSelect.value = String(config.targetStamps);
-  }
-  if (rewardInput) {
-    rewardInput.value = config.rewardDescription;
-  }
-
-  if (currentLogoBase64 && removeLogoBtn) {
-    removeLogoBtn.classList.remove('hidden');
-  }
-
-  updateLogoPreviews(currentLogoBase64, config.businessName);
-  updateHeaderBusinessInfo(config);
-}
-
-function handleSettingsSubmit() {
-  const nameInput = qs('#setting-business-name');
-  const stampsSelect = qs('#setting-target-stamps');
-  const rewardInput = qs('#setting-reward-desc');
-
-  const nameVal = nameInput ? nameInput.value.trim() : '';
-  const stampsVal = stampsSelect ? parseInt(stampsSelect.value, 10) : 8;
-  const rewardVal = rewardInput ? rewardInput.value.trim() : '';
-
-  if (nameVal.length < 2) {
-    showToast('El nombre comercial es muy corto', 'error');
-    return;
-  }
-
-  const updatedConfig = {
-    businessName: nameVal,
-    businessLogo: currentLogoBase64,
-    targetStamps: stampsVal,
-    rewardDescription: rewardVal ? rewardVal : 'Premio de Fidelizacion'
-  };
-
-  const saved = saveConfig(updatedConfig);
-  if (saved) {
-    triggerHaptic(50);
-    updateHeaderBusinessInfo(updatedConfig);
-    showToast('Ajustes guardados correctamente', 'success');
+function copyToClipboard(text, successMessage) {
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(text).then(function () {
+      triggerHaptic(40);
+      showToast(successMessage ? successMessage : 'Copiado al portapapeles', 'info');
+    }).catch(function () {
+      fallbackCopy(text, successMessage);
+    });
   } else {
-    showToast('Error al guardar configuracion', 'error');
+    fallbackCopy(text, successMessage);
   }
 }
 
-function updateHeaderBusinessInfo(config) {
-  const headerTitle = qs('#header-business-name');
-  if (headerTitle) {
-    headerTitle.textContent = config.businessName;
+function fallbackCopy(text, successMessage) {
+  const input = document.createElement('input');
+  input.value = text;
+  document.body.appendChild(input);
+  input.select();
+  try {
+    document.execCommand('copy');
+    triggerHaptic(40);
+    showToast(successMessage ? successMessage : 'Copiado al portapapeles', 'info');
+  } catch (err) {
+    showToast('No se pudo copiar automaticamente', 'error');
   }
-  updateLogoPreviews(config.businessLogo, config.businessName);
-}
-
-function updateLogoPreviews(logoBase64, businessName) {
-  const adminBadge = qs('#admin-logo-preview');
-  const settingsPreview = qs('#settings-logo-preview');
-  const fallbackText = getMonogram(businessName);
-
-  [adminBadge, settingsPreview].forEach(function (container) {
-    if (!container) {
-      return;
-    }
-    container.innerHTML = '';
-    if (logoBase64) {
-      const img = document.createElement('img');
-      img.src = logoBase64;
-      img.alt = 'Logo ' + businessName;
-      container.appendChild(img);
-    } else {
-      const span = document.createElement('span');
-      span.className = container === adminBadge ? 'admin-logo-fallback' : 'logo-placeholder-text';
-      span.textContent = fallbackText;
-      container.appendChild(span);
-    }
-  });
-}
-
-function getMonogram(name) {
-  if (!name) {
-    return 'FC';
-  }
-  const words = name.trim().split(/\s+/);
-  if (words.length === 1) {
-    return words[0].slice(0, 2).toUpperCase();
-  }
-  return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+  document.body.removeChild(input);
 }
