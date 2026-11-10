@@ -2,9 +2,9 @@
  * Orquestador principal de la aplicacion Cliente - FidelizaCard
  * Responsabilidades:
  * - Montaje modular sobre #main-content (Formulario Onboarding vs Tarjeta Activa)
- * - Sincronizacion de marca e imagotipo desde fideliza_config
+ * - Sincronizacion de marca e imagotipo desde scripts/config.js
  * - Procesamiento de sellos por delivery (?claim=), reposicion (?setStamps=) y QR (?scan=)
- * - Verificacion de cumpleanos y alerta de reenganche por inactividad (5 dias)
+ * - Secuencia automatica de reenganche (Día 5, Día 10 y Cumpleaños)
  * - Modal táctil de restablecimiento sobre #modal-container
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
@@ -19,6 +19,7 @@ import {
   isTokenUsed,
   markTokenUsed
 } from './services/storage-service.js';
+import { getNotificationTemplates, formatNotificationText } from './config.js';
 import { renderCustomerForm } from './components/customer-form.js';
 import { renderLoyaltyCard } from './components/loyalty-card.js';
 
@@ -211,12 +212,8 @@ function showResetConfirmation() {
   modalContainer.setAttribute('aria-hidden', 'false');
 
   const dialog = createElement('div', { className: 'modal-dialog' });
-
   const header = createElement('div', { className: 'modal-header' });
-  const title = createElement('h3', {
-    className: 'modal-title',
-    textContent: 'Restablecer Tarjeta'
-  });
+  const title = createElement('h3', { className: 'modal-title', textContent: 'Restablecer Tarjeta' });
   const closeBtn = createElement('button', {
     type: 'button',
     className: 'modal-close-btn',
@@ -290,7 +287,13 @@ function checkBirthdayNotification(customer) {
   }
 
   if (birthMmDd === todayMmDd) {
-    showToast('🎂 ¡Feliz cumpleanos, ' + customer.name + '! Reclama tu cortesia hoy.', 'success');
+    const config = getConfig();
+    const templates = getNotificationTemplates();
+    const msg = formatNotificationText(templates.birthdayGreeting, {
+      name: customer.name ? customer.name : 'Cliente',
+      business: config.businessName
+    });
+    showToast(msg, 'success');
   }
 }
 
@@ -303,9 +306,28 @@ function checkInactivityReminder(customer) {
   const diffTime = today.getTime() - lastDate.getTime();
   const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-  if (diffDays >= 5) {
-    const config = getConfig();
-    const stamps = customer.stamps ? customer.stamps : 0;
-    showToast('¿Con antojo hoy? Tienes ' + stamps + ' sellos esperandote en ' + config.businessName + ' 🍔', 'info');
+  if (diffDays < 5) {
+    return;
+  }
+
+  const config = getConfig();
+  const templates = getNotificationTemplates();
+  const stamps = customer.stamps ? Number(customer.stamps) : 0;
+  const target = config.targetStamps ? Number(config.targetStamps) : 8;
+  const remaining = Math.max(0, target - stamps);
+
+  if (diffDays >= 10) {
+    const msg = formatNotificationText(templates.day10Reminder, {
+      business: config.businessName,
+      remaining: remaining,
+      reward: config.rewardDescription
+    });
+    showToast(msg, 'info');
+  } else {
+    const msg = formatNotificationText(templates.day5Reminder, {
+      stamps: stamps,
+      business: config.businessName
+    });
+    showToast(msg, 'info');
   }
 }
