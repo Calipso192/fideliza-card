@@ -1,19 +1,23 @@
 /**
- * Orquestador principal de la aplicacion FidelizaCard
+ * Orquestador principal de la aplicacion Cliente - FidelizaCard
  * Responsabilidades:
- * - Deteccion de estado de usuario (Onboarding vs Tarjeta activa)
- * - Procesamiento de sellos por parametros de URL (Delivery / QR / NFC)
- * - Gestion de restablecimiento y utilidades de demostracion
+ * - Montaje modular sobre #main-content (Formulario Onboarding vs Tarjeta Activa)
+ * - Sincronizacion de marca e imagotipo desde fideliza_config
+ * - Procesamiento de sellos por delivery (?claim=), reposicion (?setStamps=) y QR (?scan=)
+ * - Verificacion de cumpleanos y alerta de reenganche por inactividad (5 dias)
+ * - Modal táctil de restablecimiento sobre #modal-container
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
-import { qs, showToast, triggerHaptic, createElement } from './utils/dom.js';
+import { qs, createElement, showToast, triggerHaptic } from './utils/dom.js';
 import {
+  getConfig,
   getCustomer,
+  resetCustomer,
   addStamp,
+  setCustomerStamps,
   isTokenUsed,
-  markTokenAsUsed,
-  resetAllData
+  markTokenUsed
 } from './services/storage-service.js';
 import { renderCustomerForm } from './components/customer-form.js';
 import { renderLoyaltyCard } from './components/loyalty-card.js';
@@ -23,84 +27,52 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 
 function initApp() {
-  const mainContainer = qs('#main-content');
-  if (!mainContainer) {
-    return;
-  }
-
   setupHeaderActions();
+  processUrlParameters();
   routeView();
 }
 
-function routeView() {
-  const mainContainer = qs('#main-content');
-  const customer = getCustomer();
+function updateHeaderBrand() {
+  const config = getConfig();
+  document.title = config.businessName + ' - Tarjeta Digital';
 
-  if (!customer) {
-    renderCustomerForm(mainContainer, function (newCustomer) {
-      handlePostRegistration(newCustomer);
-    });
-    return;
+  const brandNameEl = qs('.brand-name');
+  if (brandNameEl) {
+    brandNameEl.textContent = config.businessName;
   }
 
-  // Si el cliente ya esta registrado, renderizamos su tarjeta y procesamos enlaces pendientes
-  renderLoyaltyCard(mainContainer, customer, function () {
-    routeView();
-  });
+  const badgeContainer = qs('.brand-badge');
+  if (badgeContainer) {
+    const existingImg = badgeContainer.querySelector('.header-brand-img');
+    const dot = badgeContainer.querySelector('.brand-dot');
 
-  processUrlClaim(customer);
-}
-
-function handlePostRegistration(newCustomer) {
-  const mainContainer = qs('#main-content');
-  renderLoyaltyCard(mainContainer, newCustomer, function () {
-    routeView();
-  });
-  processUrlClaim(newCustomer);
-}
-
-function processUrlClaim(customer) {
-  const urlParams = new URLSearchParams(window.location.search);
-  const claimToken = urlParams.get('claim');
-  const targetPhone = urlParams.get('tel');
-
-  if (!claimToken) {
-    return;
-  }
-
-  // Limpiar parametros de la barra de direcciones de inmediato para evitar re-ejecuciones
-  window.history.replaceState({}, document.title, window.location.pathname);
-
-  // Verificacion de telefono destinatario (Canal Delivery)
-  if (targetPhone && customer && customer.whatsapp) {
-    const cleanCustomer = String(customer.whatsapp).replace(/\D/g, '');
-    const cleanTarget = String(targetPhone).replace(/\D/g, '');
-
-    if (cleanCustomer !== cleanTarget) {
-      showToast('Este sello pertenece a otro numero de WhatsApp', 'error', 4000);
-      return;
+    if (config.businessLogo) {
+      if (dot) {
+        dot.style.display = 'none';
+      }
+      if (existingImg) {
+        existingImg.src = config.businessLogo;
+      } else {
+        const img = createElement('img', {
+          className: 'header-brand-img',
+          src: config.businessLogo,
+          alt: config.businessName
+        });
+        img.style.width = '20px';
+        img.style.height = '20px';
+        img.style.borderRadius = '50%';
+        img.style.objectFit = 'cover';
+        img.style.marginRight = '6px';
+        badgeContainer.prepend(img);
+      }
+    } else {
+      if (existingImg) {
+        existingImg.remove();
+      }
+      if (dot) {
+        dot.style.display = 'inline-block';
+      }
     }
-  }
-
-  // Verificacion de token consumido
-  if (isTokenUsed(claimToken)) {
-    showToast('Este enlace de sello ya fue utilizado anteriormente', 'error', 4000);
-    return;
-  }
-
-  // Intento de estampacion respetando cooldown
-  const result = addStamp(false);
-
-  if (result.success) {
-    markTokenAsUsed(claimToken);
-    triggerHaptic(70);
-    showToast(result.message, 'success', 4000);
-    const mainContainer = qs('#main-content');
-    renderLoyaltyCard(mainContainer, customer, function () {
-      routeView();
-    });
-  } else {
-    showToast(result.message, 'error', 4000);
   }
 }
 
@@ -109,18 +81,124 @@ function setupHeaderActions() {
   if (!actionsContainer) {
     return;
   }
-
   actionsContainer.innerHTML = '';
-
   const resetBtn = createElement('button', {
     type: 'button',
     className: 'modal-close-btn',
     textContent: '⚙',
-    title: 'Reiniciar demo',
+    title: 'Opciones de tarjeta',
     onclick: showResetConfirmation
   });
-
   actionsContainer.appendChild(resetBtn);
+}
+
+function routeView() {
+  const mainContainer = qs('#main-content');
+  if (!mainContainer) {
+    return;
+  }
+
+  updateHeaderBrand();
+  const customer = getCustomer();
+
+  if (!customer) {
+    renderCustomerForm(mainContainer, function () {
+      processUrlParameters();
+      routeView();
+    });
+    preFillPhoneFromUrl();
+    return;
+  }
+
+  renderLoyaltyCard(mainContainer, customer, function () {
+    routeView();
+  });
+
+  checkBirthdayNotification(customer);
+  checkInactivityReminder(customer);
+}
+
+function preFillPhoneFromUrl() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const tel = urlParams.get('tel');
+  if (tel) {
+    const phoneInput = qs('#customer-phone-input');
+    if (phoneInput) {
+      phoneInput.value = tel;
+    }
+  }
+}
+
+function processUrlParameters() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const claim = urlParams.get('claim');
+  const setStamps = urlParams.get('setStamps') ? urlParams.get('setStamps') : urlParams.get('stamps');
+  const hasScan = urlParams.has('scan') ? true : urlParams.has('sello');
+
+  const customer = getCustomer();
+  if (!customer) {
+    return;
+  }
+
+  let stateUpdated = false;
+
+  if (setStamps !== null && setStamps !== undefined) {
+    const count = parseInt(setStamps, 10);
+    if (!isNaN(count)) {
+      const res = setCustomerStamps(count);
+      if (res.success) {
+        triggerHaptic(50);
+        showToast('Sellos ajustados a ' + res.stamps, 'info');
+        stateUpdated = true;
+      }
+    }
+  } else if (claim) {
+    if (isTokenUsed(claim)) {
+      showToast('Este sello de pedido ya fue reclamado', 'warning');
+    } else {
+      markTokenUsed(claim);
+      const res = addStamp(true);
+      if (res.success) {
+        triggerHaptic(60);
+        showToast('¡Sello de pedido sumado con exito!', 'success');
+        if (res.rewardUnlocked) {
+          showToast('¡Felicidades! Desbloqueaste tu premio', 'success');
+        }
+        stateUpdated = true;
+      }
+    }
+  } else if (hasScan) {
+    const res = addStamp(false);
+    if (res.success) {
+      triggerHaptic(50);
+      showToast('¡Sello de visita sumado con exito!', 'success');
+      if (res.rewardUnlocked) {
+        showToast('¡Felicidades! Desbloqueaste tu premio', 'success');
+      }
+      stateUpdated = true;
+    } else if (res.reason === 'COOLDOWN') {
+      showToast('Sello registrado hoy. Espera ' + res.remainingMinutes + ' min para el siguiente.', 'warning');
+    }
+  }
+
+  let shouldClean = false;
+  if (claim) {
+    shouldClean = true;
+  }
+  if (setStamps !== null && setStamps !== undefined) {
+    shouldClean = true;
+  }
+  if (hasScan) {
+    shouldClean = true;
+  }
+
+  if (shouldClean) {
+    window.history.replaceState({}, document.title, window.location.pathname);
+  }
+
+  if (stateUpdated) {
+    routeView();
+  }
 }
 
 function showResetConfirmation() {
@@ -128,7 +206,6 @@ function showResetConfirmation() {
   if (!modalContainer) {
     return;
   }
-
   modalContainer.innerHTML = '';
   modalContainer.classList.remove('hidden');
   modalContainer.setAttribute('aria-hidden', 'false');
@@ -138,7 +215,7 @@ function showResetConfirmation() {
   const header = createElement('div', { className: 'modal-header' });
   const title = createElement('h3', {
     className: 'modal-title',
-    textContent: 'Restablecer Datos'
+    textContent: 'Restablecer Tarjeta'
   });
   const closeBtn = createElement('button', {
     type: 'button',
@@ -151,26 +228,25 @@ function showResetConfirmation() {
 
   const body = createElement('div', {
     className: 'modal-body',
-    textContent: '¿Deseas reiniciar la tarjeta y datos de prueba? Esta accion borrara el cliente y sellos de este navegador.'
+    textContent: '¿Deseas reiniciar tu tarjeta? Esta accion borrara los sellos acumulados en este dispositivo.'
   });
 
   const actions = createElement('div', { className: 'modal-actions' });
-
   const cancelBtn = createElement('button', {
     type: 'button',
     className: 'btn-secondary',
     textContent: 'Cancelar',
     onclick: closeModal
   });
-
   const confirmBtn = createElement('button', {
     type: 'button',
     className: 'btn-primary',
-    textContent: 'Si, Borrar Todo',
+    textContent: 'Si, Restablecer',
     onclick: function () {
-      resetAllData();
+      resetCustomer();
       closeModal();
-      showToast('Datos reiniciados con exito', 'info');
+      triggerHaptic(40);
+      showToast('Tarjeta restablecida', 'info');
       routeView();
     }
   });
@@ -193,4 +269,43 @@ function closeModal() {
   modalContainer.classList.add('hidden');
   modalContainer.setAttribute('aria-hidden', 'true');
   modalContainer.innerHTML = '';
+}
+
+function checkBirthdayNotification(customer) {
+  const birth = customer.birthdate ? customer.birthdate : customer.birthday;
+  if (!birth) {
+    return;
+  }
+  const today = new Date();
+  const m = String(today.getMonth() + 1).padStart(2, '0');
+  const d = String(today.getDate()).padStart(2, '0');
+  const todayMmDd = m + '-' + d;
+
+  const parts = birth.split('-');
+  let birthMmDd = '';
+  if (parts.length === 3) {
+    birthMmDd = parts[1] + '-' + parts[2];
+  } else if (parts.length === 2) {
+    birthMmDd = parts[0] + '-' + parts[1];
+  }
+
+  if (birthMmDd === todayMmDd) {
+    showToast('🎂 ¡Feliz cumpleanos, ' + customer.name + '! Reclama tu cortesia hoy.', 'success');
+  }
+}
+
+function checkInactivityReminder(customer) {
+  if (!customer.lastVisitDate) {
+    return;
+  }
+  const lastDate = new Date(customer.lastVisitDate);
+  const today = new Date();
+  const diffTime = today.getTime() - lastDate.getTime();
+  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+  if (diffDays >= 5) {
+    const config = getConfig();
+    const stamps = customer.stamps ? customer.stamps : 0;
+    showToast('¿Con antojo hoy? Tienes ' + stamps + ' sellos esperandote en ' + config.businessName + ' 🍔', 'info');
+  }
 }

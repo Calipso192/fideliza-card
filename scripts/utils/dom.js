@@ -48,6 +48,8 @@ export function createElement(tag, attrs, children) {
   return element;
 }
 
+export const createEl = createElement;
+
 export function showToast(message, type, duration) {
   const toastType = type ? type : 'info';
   const displayDuration = duration ? duration : 3000;

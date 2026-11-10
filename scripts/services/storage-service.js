@@ -1,109 +1,93 @@
 /**
- * Servicio de persistencia y logica de negocio para FidelizaCard
- * Reglas estrictas: Vanilla JS modular, cero barras verticales y maximo 300 lineas
+ * Servicio de persistencia y estado local - FidelizaCard
+ * Responsabilidades:
+ * - Gestion de configuracion de marca compartida (fideliza_config)
+ * - Gestion de perfil de cliente, visitas y sellos (fideliza_customer)
+ * - Control de unicidad de tokens de delivery y candado antifraude
+ * - Asignacion directa de sellos para reposicion (setCustomerStamps)
+ * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
-const STORAGE_KEY_CUSTOMER = 'fideliza_customer';
-const STORAGE_KEY_LOYALTY = 'fideliza_loyalty';
-const STORAGE_KEY_TOKENS = 'fideliza_used_tokens';
+const KEY_CUSTOMER = 'fideliza_customer';
+const KEY_CONFIG = 'fideliza_config';
+const KEY_USED_TOKENS = 'fideliza_used_tokens';
+const COOLDOWN_HOURS = 3;
 
-// Cooldown de 3 horas entre sellos para prevenir abusos
-const STAMP_COOLDOWN_MS = 3 * 60 * 60 * 1000;
-const DEFAULT_TARGET_STAMPS = 8;
+export const DEFAULT_CONFIG = {
+  businessName: 'FidelizaCard',
+  businessLogo: '',
+  targetStamps: 8,
+  rewardDescription: '1 Premio Sorpresa Gratis'
+};
+
+export function getConfig() {
+  try {
+    const raw = localStorage.getItem(KEY_CONFIG);
+    if (!raw) {
+      return Object.assign({}, DEFAULT_CONFIG);
+    }
+    const parsed = JSON.parse(raw);
+    return {
+      businessName: parsed.businessName ? parsed.businessName : DEFAULT_CONFIG.businessName,
+      businessLogo: parsed.businessLogo ? parsed.businessLogo : '',
+      targetStamps: parsed.targetStamps ? Number(parsed.targetStamps) : DEFAULT_CONFIG.targetStamps,
+      rewardDescription: parsed.rewardDescription ? parsed.rewardDescription : DEFAULT_CONFIG.rewardDescription
+    };
+  } catch (err) {
+    return Object.assign({}, DEFAULT_CONFIG);
+  }
+}
+
+export function saveConfig(config) {
+  try {
+    localStorage.setItem(KEY_CONFIG, JSON.stringify(config));
+    return true;
+  } catch (err) {
+    return false;
+  }
+}
 
 export function getCustomer() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_CUSTOMER);
+    const raw = localStorage.getItem(KEY_CUSTOMER);
     if (!raw) {
       return null;
     }
     return JSON.parse(raw);
-  } catch (error) {
-    console.error('Error al leer cliente:', error);
+  } catch (err) {
     return null;
   }
 }
 
 export function saveCustomer(customerData) {
   try {
-    const payload = {
-      name: customerData.name ? customerData.name.trim() : '',
-      whatsapp: customerData.whatsapp ? customerData.whatsapp.trim() : '',
-      birthdate: customerData.birthdate ? customerData.birthdate : '',
-      registeredAt: customerData.registeredAt ? customerData.registeredAt : Date.now()
-    };
-    localStorage.setItem(STORAGE_KEY_CUSTOMER, JSON.stringify(payload));
-    return payload;
-  } catch (error) {
-    console.error('Error al guardar cliente:', error);
-    return null;
+    localStorage.setItem(KEY_CUSTOMER, JSON.stringify(customerData));
+    return true;
+  } catch (err) {
+    return false;
   }
 }
 
-export function getLoyaltyData() {
+export function resetCustomer() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_LOYALTY);
-    if (!raw) {
-      return getDefaultLoyaltyData();
-    }
-    const data = JSON.parse(raw);
-    return {
-      targetStamps: data.targetStamps ? data.targetStamps : DEFAULT_TARGET_STAMPS,
-      currentStamps: typeof data.currentStamps === 'number' ? data.currentStamps : 0,
-      completedCycles: typeof data.completedCycles === 'number' ? data.completedCycles : 0,
-      lastStampAt: typeof data.lastStampAt === 'number' ? data.lastStampAt : 0,
-      rewardAvailable: Boolean(data.rewardAvailable)
-    };
-  } catch (error) {
-    console.error('Error al leer datos de lealtad:', error);
-    return getDefaultLoyaltyData();
+    localStorage.removeItem(KEY_CUSTOMER);
+    localStorage.removeItem(KEY_USED_TOKENS);
+    return true;
+  } catch (err) {
+    return false;
   }
-}
-
-export function saveLoyaltyData(loyaltyData) {
-  try {
-    localStorage.setItem(STORAGE_KEY_LOYALTY, JSON.stringify(loyaltyData));
-    return loyaltyData;
-  } catch (error) {
-    console.error('Error al guardar datos de lealtad:', error);
-    return null;
-  }
-}
-
-function getDefaultLoyaltyData() {
-  return {
-    targetStamps: DEFAULT_TARGET_STAMPS,
-    currentStamps: 0,
-    completedCycles: 0,
-    lastStampAt: 0,
-    rewardAvailable: false
-  };
 }
 
 export function getUsedTokens() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY_TOKENS);
+    const raw = localStorage.getItem(KEY_USED_TOKENS);
     if (!raw) {
       return [];
     }
-    return JSON.parse(raw);
-  } catch (error) {
+    const list = JSON.parse(raw);
+    return Array.isArray(list) ? list : [];
+  } catch (err) {
     return [];
-  }
-}
-
-export function markTokenAsUsed(token) {
-  if (!token) {
-    return;
-  }
-  const tokens = getUsedTokens();
-  if (!tokens.includes(token)) {
-    tokens.push(token);
-    try {
-      localStorage.setItem(STORAGE_KEY_TOKENS, JSON.stringify(tokens));
-    } catch (e) {
-      console.error('Error al registrar token consumido:', e);
-    }
   }
 }
 
@@ -111,121 +95,128 @@ export function isTokenUsed(token) {
   if (!token) {
     return false;
   }
-  const tokens = getUsedTokens();
-  return tokens.includes(token);
+  const list = getUsedTokens();
+  return list.indexOf(token) !== -1;
 }
 
-export function canAddStamp(ignoreCooldown) {
-  const loyalty = getLoyaltyData();
+export function markTokenUsed(token) {
+  if (!token) {
+    return;
+  }
+  const list = getUsedTokens();
+  if (list.indexOf(token) === -1) {
+    list.push(token);
+    try {
+      localStorage.setItem(KEY_USED_TOKENS, JSON.stringify(list));
+    } catch (err) {
+      // Fallback si la cuota local esta llena
+    }
+  }
+}
 
-  if (loyalty.currentStamps >= loyalty.targetStamps) {
-    return {
-      allowed: false,
-      reason: 'reward_pending',
-      message: 'Tienes un premio listo para canjear'
-    };
+export function getCooldownRemainingMinutes() {
+  const customer = getCustomer();
+  if (!customer) {
+    return 0;
+  }
+  if (!customer.lastStampTime) {
+    return 0;
   }
 
-  if (!ignoreCooldown) {
-    const now = Date.now();
-    const diff = now - loyalty.lastStampAt;
-    if (loyalty.lastStampAt > 0 && diff < STAMP_COOLDOWN_MS) {
-      const remainingMinutes = Math.ceil((STAMP_COOLDOWN_MS - diff) / (60 * 1000));
+  const now = Date.now();
+  const elapsedMs = now - customer.lastStampTime;
+  const cooldownMs = COOLDOWN_HOURS * 60 * 60 * 1000;
+
+  if (elapsedMs >= cooldownMs) {
+    return 0;
+  }
+
+  const diffMs = cooldownMs - elapsedMs;
+  return Math.ceil(diffMs / (60 * 1000));
+}
+
+export function addStamp(bypassCooldown) {
+  const customer = getCustomer();
+  if (!customer) {
+    return { success: false, reason: 'NO_CUSTOMER' };
+  }
+
+  if (!bypassCooldown) {
+    const remainingMinutes = getCooldownRemainingMinutes();
+    if (remainingMinutes > 0) {
       return {
-        allowed: false,
-        reason: 'cooldown_active',
-        message: 'Sello registrado hoy. Espera ' + remainingMinutes + ' min para el siguiente.'
+        success: false,
+        reason: 'COOLDOWN',
+        remainingMinutes: remainingMinutes
       };
     }
   }
 
-  return {
-    allowed: true,
-    reason: 'ok',
-    message: 'Listo para sellar'
-  };
-}
+  const config = getConfig();
+  const targetStamps = config.targetStamps;
+  let currentStamps = customer.stamps ? customer.stamps : 0;
+  let currentCycle = customer.cycle ? customer.cycle : 1;
+  let rewardUnlocked = false;
 
-export function addStamp(ignoreCooldown) {
-  const check = canAddStamp(ignoreCooldown);
-  if (!check.allowed) {
-    return {
-      success: false,
-      reason: check.reason,
-      message: check.message,
-      data: getLoyaltyData()
-    };
+  currentStamps += 1;
+
+  if (currentStamps >= targetStamps) {
+    rewardUnlocked = true;
   }
 
-  const loyalty = getLoyaltyData();
-  const nextCount = loyalty.currentStamps + 1;
-  const isRewardUnlocked = nextCount >= loyalty.targetStamps;
+  customer.stamps = currentStamps;
+  customer.lastStampTime = Date.now();
+  customer.lastVisitDate = new Date().toISOString().split('T')[0];
 
-  const updated = {
-    targetStamps: loyalty.targetStamps,
-    currentStamps: nextCount,
-    completedCycles: loyalty.completedCycles,
-    lastStampAt: Date.now(),
-    rewardAvailable: isRewardUnlocked
-  };
-
-  saveLoyaltyData(updated);
+  saveCustomer(customer);
 
   return {
     success: true,
-    reason: 'stamp_added',
-    message: isRewardUnlocked ? '¡Completaste tu tarjeta! Tienes un premio listo' : '¡Sello añadido con exito!',
-    data: updated
+    stamps: currentStamps,
+    cycle: currentCycle,
+    targetStamps: targetStamps,
+    rewardUnlocked: rewardUnlocked
   };
 }
 
-export function redeemReward() {
-  const loyalty = getLoyaltyData();
-
-  if (!loyalty.rewardAvailable && loyalty.currentStamps < loyalty.targetStamps) {
-    return {
-      success: false,
-      message: 'Aun no tienes suficientes sellos para canjear'
-    };
+export function setCustomerStamps(count) {
+  const customer = getCustomer();
+  if (!customer) {
+    return { success: false, reason: 'NO_CUSTOMER' };
   }
 
-  const updated = {
-    targetStamps: loyalty.targetStamps,
-    currentStamps: 0,
-    completedCycles: loyalty.completedCycles + 1,
-    lastStampAt: loyalty.lastStampAt,
-    rewardAvailable: false
-  };
+  const config = getConfig();
+  const targetStamps = config.targetStamps;
+  const parsedCount = Math.max(0, Math.min(Number(count), targetStamps));
 
-  saveLoyaltyData(updated);
+  customer.stamps = parsedCount;
+  customer.lastStampTime = Date.now();
+  customer.lastVisitDate = new Date().toISOString().split('T')[0];
+
+  const rewardUnlocked = parsedCount >= targetStamps;
+
+  saveCustomer(customer);
 
   return {
     success: true,
-    message: '¡Premio canjeado con exito! Nueva tarjeta lista',
-    data: updated
+    stamps: parsedCount,
+    cycle: customer.cycle ? customer.cycle : 1,
+    targetStamps: targetStamps,
+    rewardUnlocked: rewardUnlocked
   };
 }
 
-export function isBirthdayToday(birthdateStr) {
-  if (!birthdateStr) {
+export function claimRewardAndNewCycle() {
+  const customer = getCustomer();
+  if (!customer) {
     return false;
   }
-  const parts = birthdateStr.split('-');
-  if (parts.length < 3) {
-    return false;
-  }
-  const birthMonth = parseInt(parts[1], 10);
-  const birthDay = parseInt(parts[2], 10);
 
-  const now = new Date();
-  const currentMonth = now.getMonth() + 1;
-  const currentDay = now.getDate();
+  customer.stamps = 0;
+  customer.cycle = (customer.cycle ? customer.cycle : 1) + 1;
+  customer.lastStampTime = Date.now();
+  customer.lastVisitDate = new Date().toISOString().split('T')[0];
 
-  return birthMonth === currentMonth && birthDay === currentDay;
-}
-
-export function resetAllData() {
-  localStorage.removeItem(STORAGE_KEY_CUSTOMER);
-  localStorage.removeItem(STORAGE_KEY_LOYALTY);
-  localStorage.removeItem(STORAGE_KEY_TOKENS);
+  saveCustomer(customer);
+  return true;
 }
