@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#030712">
+  <meta name="description" content="Panel de administracion y despacho para FidelizaCard">
+  <title>FidelizaCard - Panel de Control</title>
+
+  <link rel="stylesheet" href="styles/variables.css">
+  <link rel="stylesheet" href="styles/main.css">
+  <link rel="stylesheet" href="styles/admin.css">
+</head>
+<body>
+  <div id="admin-app" class="admin-layout">
+    <header class="admin-header">
+      <div class="admin-brand">
+        <div id="admin-logo-preview" class="admin-logo-badge">
+          <span class="admin-logo-fallback">FC</span>
+        </div>
+        <div>
+          <h1 id="header-business-name" class="admin-title">FidelizaCard</h1>
+          <p class="admin-subtitle">Panel de Control</p>
+        </div>
+      </div>
+      <a href="index.html" class="btn-preview-card" title="Ver Tarjeta de Cliente">
+        <span>Ver Tarjeta</span>
+      </a>
+    </header>
+
+    <nav class="admin-tabs" aria-label="Secciones del panel">
+      <button type="button" class="tab-btn active" data-tab="tab-delivery">Despacho</button>
+      <button type="button" class="tab-btn" data-tab="tab-qr">QR Mostrador</button>
+      <button type="button" class="tab-btn" data-tab="tab-settings">Marca & Logo</button>
+    </nav>
+
+    <main class="admin-main">
+      <!-- Seccion 1: Despacho Delivery WhatsApp -->
+      <section id="tab-delivery" class="tab-content active">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Generar Sello Delivery</h2>
+            <p class="section-desc">Envia el enlace de sello por WhatsApp al confirmar un pedido.</p>
+          </div>
+
+          <form id="delivery-form" class="admin-form">
+            <div class="field-group">
+              <label class="field-label" for="delivery-phone">WhatsApp del Cliente</label>
+              <div class="input-with-prefix">
+                <span class="input-prefix">+51</span>
+                <input
+                  type="tel"
+                  id="delivery-phone"
+                  class="field-input prefix-padding"
+                  placeholder="987654321"
+                  pattern="[0-9]{9}"
+                  inputmode="numeric"
+                  required
+                >
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="delivery-order-id">Codigo de Boleta / Pedido (Opcional)</label>
+              <input
+                type="text"
+                id="delivery-order-id"
+                class="field-input"
+                placeholder="Ej. PED-102"
+              >
+            </div>
+
+            <div class="actions-stack">
+              <button type="submit" id="btn-send-whatsapp" class="btn-whatsapp">
+                <span class="btn-icon">💬</span>
+                <span>Enviar Sello por WhatsApp</span>
+              </button>
+              <button type="button" id="btn-copy-link" class="btn-secondary">
+                <span>Copiar Enlace Manual</span>
+              </button>
+            </div>
+          </form>
+
+          <div id="delivery-link-preview" class="link-preview-box hidden">
+            <span class="preview-label">Enlace generado:</span>
+            <code id="preview-url-text" class="preview-url"></code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 2: QR Mostrador -->
+      <section id="tab-qr" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Codigo QR de Mostrador</h2>
+            <p class="section-desc">Exhibelo en barra o caja para que el cliente lo escanee al pagar.</p>
+          </div>
+
+          <div class="qr-display-container">
+            <div class="qr-canvas-frame">
+              <canvas id="qr-canvas" width="240" height="240"></canvas>
+            </div>
+            <p class="qr-target-text">Apunta a la tarjeta de tu local</p>
+          </div>
+
+          <div class="actions-stack">
+            <button type="button" id="btn-download-qr" class="btn-primary">
+              <span class="btn-icon">📥</span>
+              <span>Descargar QR para Imprimir</span>
+            </button>
+          </div>
+
+          <div class="print-guide-card">
+            <h3 class="guide-title">Recomendacion de Impresion</h3>
+            <p class="guide-text">
+              Imprime este codigo en formato A6 (10x15 cm) o adhesivo plastificado para colocarlo junto al POS o sobre la barra de atencion.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 3: Ajustes de Marca & Logo -->
+      <section id="tab-settings" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Ajustes del Negocio</h2>
+            <p class="section-desc">Personaliza la identidad que vera el cliente en su tarjeta digital.</p>
+          </div>
+
+          <form id="settings-form" class="admin-form">
+            <!-- Subir Logo -->
+            <div class="field-group">
+              <label class="field-label">Logo del Local</label>
+              <div class="logo-uploader-row">
+                <div id="settings-logo-preview" class="logo-preview-box">
+                  <span class="logo-placeholder-text">Sin Logo</span>
+                </div>
+                <div class="logo-file-controls">
+                  <label for="logo-file-input" class="btn-file-select">
+                    <span>Seleccionar Imagen</span>
+                  </label>
+                  <input type="file" id="logo-file-input" accept="image/*" class="hidden-file-input">
+                  <button type="button" id="btn-remove-logo" class="btn-remove-text hidden">Eliminar</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Nombre Comercial -->
+            <div class="field-group">
+              <label class="field-label" for="setting-business-name">Nombre Comercial</label>
+              <input
+                type="text"
+                id="setting-business-name"
+                class="field-input"
+                placeholder="Ej. Dulce Fusion"
+                required
+              >
+            </div>
+
+            <!-- Meta de Sellos -->
+            <div class="field-group">
+              <label class="field-label" for="setting-target-stamps">Sellos para Ganar Premio</label>
+              <select id="setting-target-stamps" class="field-input field-select">
+                <option value="6">6 Sellos</option>
+                <option value="8" selected>8 Sellos (Recomendado)</option>
+                <option value="10">10 Sellos</option>
+              </select>
+            </div>
+
+            <!-- Descripcion del Premio -->
+            <div class="field-group">
+              <label class="field-label" for="setting-reward-desc">Premio al Completar</label>
+              <input
+                type="text"
+                id="setting-reward-desc"
+                class="field-input"
+                placeholder="Ej. 1 Combo Clasico o Postre Gratis"
+                required
+              >
+            </div>
+
+            <button type="submit" class="btn-primary">
+              <span>Guardar Ajustes</span>
+            </button>
+          </form>
+        </div>
+      </section>
+    </main>
+
+    <footer class="admin-footer">
+      <p class="footer-text">FidelizaCard Suite Comercial</p>
+    </footer>
+  </div>
+
+  <div id="toast-container" class="toast-stack" aria-live="polite"></div>
+
+  <script type="module" src="scripts/admin.js"></script>
+</body>
+</html>
