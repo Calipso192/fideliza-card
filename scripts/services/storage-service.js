@@ -1,50 +1,46 @@
 /**
- * Servicio de persistencia y estado local - FidelizaCard
+ * Servicio de persistencia y estado local - FidelizaCard (Fase 1 Llave en Mano)
  * Responsabilidades:
- * - Gestion de configuracion de marca compartida (fideliza_config)
- * - Gestion de perfil de cliente, visitas y sellos (fideliza_customer)
- * - Control de unicidad de tokens de delivery y candado antifraude
- * - Asignacion directa de sellos para reposicion (setCustomerStamps)
+ * - Conexion con configuracion estatica de fabrica (scripts/config.js)
+ * - Persistencia del cliente, visitas y sellos en localStorage
+ * - Normalizacion automatica de campos (phone/whatsapp y birthday/birthdate)
+ * - Candado antifraude de 3 horas para mostrador y bypass para delivery
+ * - Asignacion directa de sellos (?setStamps=X) y control de tokens usados
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
+import { getBusinessConfig } from '../config.js';
+
 const KEY_CUSTOMER = 'fideliza_customer';
-const KEY_CONFIG = 'fideliza_config';
 const KEY_USED_TOKENS = 'fideliza_used_tokens';
 const COOLDOWN_HOURS = 3;
 
-export const DEFAULT_CONFIG = {
-  businessName: 'FidelizaCard',
-  businessLogo: '',
-  targetStamps: 8,
-  rewardDescription: '1 Premio Sorpresa Gratis'
-};
-
 export function getConfig() {
-  try {
-    const raw = localStorage.getItem(KEY_CONFIG);
-    if (!raw) {
-      return Object.assign({}, DEFAULT_CONFIG);
-    }
-    const parsed = JSON.parse(raw);
-    return {
-      businessName: parsed.businessName ? parsed.businessName : DEFAULT_CONFIG.businessName,
-      businessLogo: parsed.businessLogo ? parsed.businessLogo : '',
-      targetStamps: parsed.targetStamps ? Number(parsed.targetStamps) : DEFAULT_CONFIG.targetStamps,
-      rewardDescription: parsed.rewardDescription ? parsed.rewardDescription : DEFAULT_CONFIG.rewardDescription
-    };
-  } catch (err) {
-    return Object.assign({}, DEFAULT_CONFIG);
-  }
+  const b = getBusinessConfig();
+  const nameVal = b.name ? b.name : 'FidelizaCard';
+  const logoVal = b.logo ? b.logo : '';
+  const targetVal = b.targetStamps ? Number(b.targetStamps) : 8;
+  const rewardVal = b.rewardDescription ? b.rewardDescription : 'Premio sorpresa';
+  const phoneVal = b.whatsappDelivery ? b.whatsappDelivery : '';
+  const msgVal = b.whatsappMessage ? b.whatsappMessage : '';
+  const mapsVal = b.googleMapsReviewUrl ? b.googleMapsReviewUrl : '';
+
+  return {
+    name: nameVal,
+    businessName: nameVal,
+    logo: logoVal,
+    businessLogo: logoVal,
+    targetStamps: targetVal,
+    rewardDescription: rewardVal,
+    whatsappDelivery: phoneVal,
+    whatsappMessage: msgVal,
+    googleMapsReviewUrl: mapsVal
+  };
 }
 
-export function saveConfig(config) {
-  try {
-    localStorage.setItem(KEY_CONFIG, JSON.stringify(config));
-    return true;
-  } catch (err) {
-    return false;
-  }
+export function saveConfig() {
+  // En Fase 1 la configuracion es estatica de fabrica desde scripts/config.js
+  return true;
 }
 
 export function getCustomer() {
@@ -53,7 +49,30 @@ export function getCustomer() {
     if (!raw) {
       return null;
     }
-    return JSON.parse(raw);
+    const customer = JSON.parse(raw);
+
+    if (!customer.phone) {
+      if (customer.whatsapp) {
+        customer.phone = customer.whatsapp;
+      }
+    }
+    if (!customer.whatsapp) {
+      if (customer.phone) {
+        customer.whatsapp = customer.phone;
+      }
+    }
+    if (!customer.birthday) {
+      if (customer.birthdate) {
+        customer.birthday = customer.birthdate;
+      }
+    }
+    if (!customer.birthdate) {
+      if (customer.birthday) {
+        customer.birthdate = customer.birthday;
+      }
+    }
+
+    return customer;
   } catch (err) {
     return null;
   }
@@ -61,7 +80,37 @@ export function getCustomer() {
 
 export function saveCustomer(customerData) {
   try {
-    localStorage.setItem(KEY_CUSTOMER, JSON.stringify(customerData));
+    const data = Object.assign({}, customerData);
+
+    if (!data.phone) {
+      if (data.whatsapp) {
+        data.phone = data.whatsapp;
+      }
+    }
+    if (!data.whatsapp) {
+      if (data.phone) {
+        data.whatsapp = data.phone;
+      }
+    }
+    if (!data.birthday) {
+      if (data.birthdate) {
+        data.birthday = data.birthdate;
+      }
+    }
+    if (!data.birthdate) {
+      if (data.birthday) {
+        data.birthdate = data.birthday;
+      }
+    }
+
+    if (data.stamps === undefined) {
+      data.stamps = 0;
+    }
+    if (data.cycle === undefined) {
+      data.cycle = 1;
+    }
+
+    localStorage.setItem(KEY_CUSTOMER, JSON.stringify(data));
     return true;
   } catch (err) {
     return false;
@@ -77,6 +126,8 @@ export function resetCustomer() {
     return false;
   }
 }
+
+export const resetAllData = resetCustomer;
 
 export function getUsedTokens() {
   try {
@@ -109,10 +160,12 @@ export function markTokenUsed(token) {
     try {
       localStorage.setItem(KEY_USED_TOKENS, JSON.stringify(list));
     } catch (err) {
-      // Fallback si la cuota local esta llena
+      // Manejo de cuota local
     }
   }
 }
+
+export const markTokenAsUsed = markTokenUsed;
 
 export function getCooldownRemainingMinutes() {
   const customer = getCustomer();
@@ -138,7 +191,11 @@ export function getCooldownRemainingMinutes() {
 export function addStamp(bypassCooldown) {
   const customer = getCustomer();
   if (!customer) {
-    return { success: false, reason: 'NO_CUSTOMER' };
+    return {
+      success: false,
+      reason: 'NO_CUSTOMER',
+      message: 'No hay cliente registrado'
+    };
   }
 
   if (!bypassCooldown) {
@@ -147,15 +204,16 @@ export function addStamp(bypassCooldown) {
       return {
         success: false,
         reason: 'COOLDOWN',
-        remainingMinutes: remainingMinutes
+        remainingMinutes: remainingMinutes,
+        message: 'Espera ' + remainingMinutes + ' min para el siguiente sello'
       };
     }
   }
 
   const config = getConfig();
   const targetStamps = config.targetStamps;
-  let currentStamps = customer.stamps ? customer.stamps : 0;
-  let currentCycle = customer.cycle ? customer.cycle : 1;
+  let currentStamps = customer.stamps ? Number(customer.stamps) : 0;
+  let currentCycle = customer.cycle ? Number(customer.cycle) : 1;
   let rewardUnlocked = false;
 
   currentStamps += 1;
@@ -175,7 +233,8 @@ export function addStamp(bypassCooldown) {
     stamps: currentStamps,
     cycle: currentCycle,
     targetStamps: targetStamps,
-    rewardUnlocked: rewardUnlocked
+    rewardUnlocked: rewardUnlocked,
+    message: '¡Sello sumado con exito!'
   };
 }
 
@@ -213,7 +272,7 @@ export function claimRewardAndNewCycle() {
   }
 
   customer.stamps = 0;
-  customer.cycle = (customer.cycle ? customer.cycle : 1) + 1;
+  customer.cycle = (customer.cycle ? Number(customer.cycle) : 1) + 1;
   customer.lastStampTime = Date.now();
   customer.lastVisitDate = new Date().toISOString().split('T')[0];
 
