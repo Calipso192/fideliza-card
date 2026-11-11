@@ -89,14 +89,15 @@ function getBaseClientUrl() {
     if (!base.endsWith('/')) {
       base = base + '/';
     }
-    return base + 'index.html';
+    return base;
   }
   const loc = window.location;
   let path = loc.pathname;
   if (path.indexOf('admin.html') !== -1) {
-    path = path.replace('admin.html', 'index.html');
-  } else if (path.endsWith('/')) {
-    path = path + 'index.html';
+    path = path.replace('admin.html', '');
+  }
+  if (!path.endsWith('/')) {
+    path = path + '/';
   }
   return loc.origin + path;
 }

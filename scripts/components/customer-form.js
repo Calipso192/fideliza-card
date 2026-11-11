@@ -23,7 +23,7 @@ export function renderCustomerForm(container, onComplete) {
 
   const subtitle = createElement('p', {
     className: 'form-subtitle',
-    textContent: 'Registra tus datos para activar tu tarjeta y recibir tu primer sello de bienvenida.'
+    textContent: 'Registra tus datos para activar tu tarjeta y acumular tus sellos de recompensa.'
   });
 
   const form = createElement('form', {
@@ -142,11 +142,32 @@ function handleSubmit(formElement, onComplete) {
     return;
   }
 
-  // Sello de bienvenida automatico
-  addStamp(true);
+  // Comprobar si el usuario ingreso con un link de reclamo o escaneo activo
+  const urlParams = new URLSearchParams(window.location.search);
+  const hasClaim = urlParams.has('claim');
+  const hasScan = urlParams.has('scan') ? true : urlParams.has('sello');
+  const hasSetStamps = urlParams.has('setStamps') ? true : urlParams.has('stamps');
+
+  // Solo se otorga sello de bienvenida si entra de forma organica sin link de compra
+  let incomingWithAction = false;
+  if (hasClaim) {
+    incomingWithAction = true;
+  }
+  if (hasScan) {
+    incomingWithAction = true;
+  }
+  if (hasSetStamps) {
+    incomingWithAction = true;
+  }
+
+  if (!incomingWithAction) {
+    addStamp(true);
+    showToast('¡Bienvenido! Tienes tu 1er sello de regalo', 'success');
+  } else {
+    showToast('¡Cuenta creada! Procesando tu sello...', 'info');
+  }
 
   triggerHaptic(50);
-  showToast('¡Bienvenido! Tienes tu 1er sello de regalo', 'success');
 
   if (typeof onComplete === 'function') {
     onComplete(saved);
