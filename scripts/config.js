@@ -9,7 +9,7 @@
 export const CONFIG = {
   business: {
     name: 'BLAP · STREET FOOD',
-    logo: '',
+    logo: 'assets/logo.png',
     targetStamps: 8,
     rewardDescription: '1 Hamburguesa Clasica + Gaseosa',
     whatsappDelivery: '51999999999',
