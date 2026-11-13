@@ -1,16 +1,16 @@
 /**
- * Componente Tarjeta de Lealtad - FidelizaCard (Fase 1 Llave en Mano)
+ * Componente Tarjeta de Lealtad - FidelizaCard (v1.5)
  * Responsabilidades:
  * - Renderizado adaptativo de sellos segun meta estatica (6, 8 o 10)
- * - Visualizacion de progreso, ciclo y capsula sobria de recompensa
- * - Boton prioritario para pedidos de delivery por WhatsApp
- * - Acceso directo a resenas en Google Maps
- * - Confirmacion de canje y transicion a nuevo ciclo
+ * - Apertura del modal de canje blindado al completar los sellos
+ * - Disparador de resena en Google Maps exclusivamente tras completar un canje
+ * - Renderizado dinamico de redes sociales (Instagram, TikTok, Facebook)
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
 import { createElement, triggerHaptic, maskPhone } from '../utils/dom.js';
-import { getConfig, claimRewardAndNewCycle } from '../services/storage-service.js';
+import { getConfig } from '../services/storage-service.js';
+import { openRedeemModal } from './redeem-modal.js';
 
 export function renderLoyaltyCard(container, customer, onUpdate) {
   if (!container) {
@@ -26,12 +26,12 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
   const currentStamps = customer.stamps ? Number(customer.stamps) : 0;
   const currentCycle = customer.cycle ? Number(customer.cycle) : 1;
   const rewardUnlocked = currentStamps >= targetStamps;
+  const showPostRedeemReview = customer.justRedeemed === true;
 
   container.innerHTML = '';
 
   const card = createElement('div', { className: 'loyalty-card' });
 
-  // Cabecera de la tarjeta
   const cardHeader = createElement('div', { className: 'card-top-row' });
   const userMeta = createElement('div', { className: 'card-user-meta' });
   const userName = createElement('h2', {
@@ -56,7 +56,6 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
   cardHeader.appendChild(cycleBadge);
   card.appendChild(cardHeader);
 
-  // Cuadricula adaptativa de sellos
   const grid = createElement('div', { className: 'stamps-grid' });
   let cols = 4;
   if (targetStamps === 6) {
@@ -88,7 +87,6 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
   }
   card.appendChild(grid);
 
-  // Fila de contador de sellos
   const counterRow = createElement('div', { className: 'stamps-counter-row' });
   const counterLabel = createElement('span', { className: 'counter-label', textContent: 'Sellos acumulados: ' });
   const counterVal = createElement('span', {
@@ -101,7 +99,6 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
 
   container.appendChild(card);
 
-  // Bloque de estado, capsula de recompensa y acciones
   const infoBox = createElement('div', { className: 'card-status-box' });
 
   if (rewardUnlocked) {
@@ -117,51 +114,53 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
       textContent: config.rewardDescription
     });
 
-    infoBox.appendChild(celebrationTitle);
-    infoBox.appendChild(rewardDesc);
-
-    // Disparador directo a Google Maps en el momento de mayor satisfaccion
-    if (config.googleMapsReviewUrl) {
-      const mapsBtn = createElement('a', {
-        className: 'btn-maps-direct',
-        href: config.googleMapsReviewUrl,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        textContent: '⭐ Da tu reseña aquí ↗'
-      });
-      infoBox.appendChild(mapsBtn);
-    }
-
     const instruction = createElement('p', {
       className: 'reward-instruction',
-      textContent: 'Muestrale esta pantalla en caja para canjear tu cortesia.'
+      textContent: 'Elige si vas a canjear tu premio ahora en caja o en tu proximo pedido delivery.'
     });
 
     const claimBtn = createElement('button', {
       className: 'btn-claim',
       type: 'button',
-      textContent: 'Confirmar Canje y Nuevo Ciclo'
+      textContent: 'Canjear Mi Premio Ahora'
     });
 
     claimBtn.addEventListener('click', function () {
-      triggerHaptic(60);
-      claimRewardAndNewCycle();
-      if (typeof onUpdate === 'function') {
-        onUpdate();
-      }
+      triggerHaptic(50);
+      openRedeemModal(customer, onUpdate);
     });
 
+    infoBox.appendChild(celebrationTitle);
+    infoBox.appendChild(rewardDesc);
     infoBox.appendChild(instruction);
     infoBox.appendChild(claimBtn);
-
   } else {
+    if (showPostRedeemReview) {
+      if (config.googleMapsReviewUrl) {
+        const reviewBanner = createElement('div', { className: 'post-redeem-review-box' });
+        const reviewText = createElement('p', {
+          className: 'post-redeem-text',
+          textContent: '¡Disfruta tu premio! Si te gusto la atencion, apoyanos con 5 estrellas:'
+        });
+        const mapsBtn = createElement('a', {
+          className: 'btn-maps-highlight',
+          href: config.googleMapsReviewUrl,
+          target: '_blank',
+          rel: 'noopener noreferrer',
+          textContent: '⭐ Calificar en Google Maps ↗'
+        });
+        reviewBanner.appendChild(reviewText);
+        reviewBanner.appendChild(mapsBtn);
+        infoBox.appendChild(reviewBanner);
+      }
+    }
+
     const hint = createElement('p', {
       className: 'card-instruction-text',
       textContent: 'Presenta tu tarjeta en caja al pagar o abre tu enlace de delivery para sumar sellos.'
     });
     infoBox.appendChild(hint);
 
-    // Capsula sobria de recompensa
     const rewardCapsule = createElement('div', { className: 'reward-capsule' });
     const capsuleTag = createElement('span', {
       className: 'reward-capsule-tag',
@@ -175,7 +174,6 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
     rewardCapsule.appendChild(capsuleName);
     infoBox.appendChild(rewardCapsule);
 
-    // Botonera de acciones directas
     const actionsGroup = createElement('div', { className: 'card-quick-actions' });
 
     if (config.whatsappDelivery) {
@@ -193,19 +191,59 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
       actionsGroup.appendChild(deliveryBtn);
     }
 
-    if (config.googleMapsReviewUrl) {
-      const mapsBtn = createElement('a', {
-        className: 'btn-maps-direct',
-        href: config.googleMapsReviewUrl,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        textContent: '⭐ Da tu reseña aquí ↗'
-      });
-      actionsGroup.appendChild(mapsBtn);
-    }
-
     infoBox.appendChild(actionsGroup);
   }
 
+  const socialsBar = buildSocialsFooter(config.socials);
+  if (socialsBar) {
+    infoBox.appendChild(socialsBar);
+  }
+
   container.appendChild(infoBox);
+}
+
+function buildSocialsFooter(socials) {
+  if (!socials) {
+    return null;
+  }
+
+  const links = [];
+
+  if (socials.instagramUrl) {
+    links.push({ label: 'Instagram', url: socials.instagramUrl });
+  }
+  if (socials.tiktokUrl) {
+    links.push({ label: 'TikTok', url: socials.tiktokUrl });
+  }
+  if (socials.facebookUrl) {
+    links.push({ label: 'Facebook', url: socials.facebookUrl });
+  }
+
+  if (links.length === 0) {
+    return null;
+  }
+
+  const bar = createElement('div', { className: 'card-socials-bar' });
+  const label = createElement('span', {
+    className: 'socials-bar-label',
+    textContent: 'Siguenos:'
+  });
+  bar.appendChild(label);
+
+  const list = createElement('div', { className: 'socials-links-row' });
+
+  for (let i = 0; i < links.length; i++) {
+    const item = links[i];
+    const anchor = createElement('a', {
+      className: 'social-chip-link',
+      href: item.url,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      textContent: item.label + ' ↗'
+    });
+    list.appendChild(anchor);
+  }
+
+  bar.appendChild(list);
+  return bar;
 }

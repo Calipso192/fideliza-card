@@ -1,10 +1,11 @@
 /**
- * Componente Formulario de Registro de Cliente
- * Responsabilidad: Captura y validacion de datos iniciales
+ * Componente Formulario de Registro de Cliente - FidelizaCard (v1.5)
+ * Responsabilidad: Captura y validacion de datos iniciales con input DD-MM-AAAA
  * Reglas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
 import { createElement, showToast, triggerHaptic } from '../utils/dom.js';
+import { playStampSound } from '../utils/sound-fx.js';
 import { saveCustomer, addStamp } from '../services/storage-service.js';
 
 export function renderCustomerForm(container, onComplete) {
@@ -34,7 +35,6 @@ export function renderCustomerForm(container, onComplete) {
     }
   });
 
-  // Campo Nombre
   const nameGroup = createElement('div', { className: 'field-group' });
   const nameLabel = createElement('label', {
     className: 'field-label',
@@ -52,7 +52,6 @@ export function renderCustomerForm(container, onComplete) {
   nameGroup.appendChild(nameLabel);
   nameGroup.appendChild(nameInput);
 
-  // Campo WhatsApp
   const phoneGroup = createElement('div', { className: 'field-group' });
   const phoneLabel = createElement('label', {
     className: 'field-label',
@@ -72,22 +71,29 @@ export function renderCustomerForm(container, onComplete) {
   phoneGroup.appendChild(phoneLabel);
   phoneGroup.appendChild(phoneInput);
 
-  // Campo Cumpleaños
   const birthGroup = createElement('div', { className: 'field-group' });
   const birthLabel = createElement('label', {
     className: 'field-label',
-    textContent: 'Fecha de Cumpleaños',
+    textContent: 'Fecha de Cumpleaños (Opcional)',
     htmlFor: 'customer-birth-input'
   });
   const birthInput = createElement('input', {
-    type: 'date',
+    type: 'text',
     id: 'customer-birth-input',
-    className: 'field-input'
+    className: 'field-input',
+    placeholder: 'DD-MM-AAAA (Ej. 15-08-1998)',
+    inputmode: 'numeric',
+    maxlength: '10',
+    autocomplete: 'bday'
   });
+
+  birthInput.addEventListener('input', function () {
+    birthInput.value = formatBirthDateMask(birthInput.value);
+  });
+
   birthGroup.appendChild(birthLabel);
   birthGroup.appendChild(birthInput);
 
-  // Boton Enviar
   const submitBtn = createElement('button', {
     type: 'submit',
     className: 'btn-primary',
@@ -106,6 +112,78 @@ export function renderCustomerForm(container, onComplete) {
   container.appendChild(formCard);
 }
 
+function formatBirthDateMask(rawValue) {
+  const digits = String(rawValue).replace(/\D/g, '').slice(0, 8);
+  if (digits.length <= 2) {
+    return digits;
+  }
+  if (digits.length <= 4) {
+    return digits.slice(0, 2) + '-' + digits.slice(2);
+  }
+  return digits.slice(0, 2) + '-' + digits.slice(2, 4) + '-' + digits.slice(4);
+}
+
+function parseAndValidateBirthDate(maskedValue) {
+  const trimmed = String(maskedValue).trim();
+  if (!trimmed) {
+    return { valid: true, isoValue: '' };
+  }
+
+  const parts = trimmed.split('-');
+  if (parts.length !== 3) {
+    return { valid: false, isoValue: '' };
+  }
+
+  const day = parseInt(parts[0], 10);
+  const month = parseInt(parts[1], 10);
+  const year = parseInt(parts[2], 10);
+
+  if (parts[0].length !== 2) {
+    return { valid: false, isoValue: '' };
+  }
+  if (parts[1].length !== 2) {
+    return { valid: false, isoValue: '' };
+  }
+  if (parts[2].length !== 4) {
+    return { valid: false, isoValue: '' };
+  }
+
+  if (isNaN(day) ? true : isNaN(month) ? true : isNaN(year)) {
+    return { valid: false, isoValue: '' };
+  }
+
+  const currentYear = new Date().getFullYear();
+  if (year < 1920) {
+    return { valid: false, isoValue: '' };
+  }
+  if (year > currentYear) {
+    return { valid: false, isoValue: '' };
+  }
+  if (month < 1) {
+    return { valid: false, isoValue: '' };
+  }
+  if (month > 12) {
+    return { valid: false, isoValue: '' };
+  }
+
+  const maxDaysInMonth = new Date(year, month, 0).getDate();
+  if (day < 1) {
+    return { valid: false, isoValue: '' };
+  }
+  if (day > maxDaysInMonth) {
+    return { valid: false, isoValue: '' };
+  }
+
+  const dd = String(day).padStart(2, '0');
+  const mm = String(month).padStart(2, '0');
+  const yyyy = String(year);
+
+  return {
+    valid: true,
+    isoValue: yyyy + '-' + mm + '-' + dd
+  };
+}
+
 function handleSubmit(formElement, onComplete) {
   const nameInput = formElement.querySelector('#customer-name-input');
   const phoneInput = formElement.querySelector('#customer-phone-input');
@@ -113,7 +191,7 @@ function handleSubmit(formElement, onComplete) {
 
   const nameVal = nameInput ? nameInput.value.trim() : '';
   const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-  const birthVal = birthInput ? birthInput.value : '';
+  const birthRaw = birthInput ? birthInput.value : '';
 
   if (nameVal.length < 2) {
     showToast('Ingresa un nombre valido', 'error');
@@ -131,10 +209,19 @@ function handleSubmit(formElement, onComplete) {
     return;
   }
 
+  const parsedBirth = parseAndValidateBirthDate(birthRaw);
+  if (!parsedBirth.valid) {
+    showToast('Fecha invalida. Usa formato DD-MM-AAAA', 'error');
+    if (birthInput) {
+      birthInput.focus();
+    }
+    return;
+  }
+
   const saved = saveCustomer({
     name: nameVal,
     whatsapp: rawPhone,
-    birthdate: birthVal
+    birthdate: parsedBirth.isoValue
   });
 
   if (!saved) {
@@ -142,13 +229,11 @@ function handleSubmit(formElement, onComplete) {
     return;
   }
 
-  // Comprobar si el usuario ingreso con un link de reclamo o escaneo activo
   const urlParams = new URLSearchParams(window.location.search);
   const hasClaim = urlParams.has('claim');
   const hasScan = urlParams.has('scan') ? true : urlParams.has('sello');
   const hasSetStamps = urlParams.has('setStamps') ? true : urlParams.has('stamps');
 
-  // Solo se otorga sello de bienvenida si entra de forma organica sin link de compra
   let incomingWithAction = false;
   if (hasClaim) {
     incomingWithAction = true;
@@ -162,6 +247,7 @@ function handleSubmit(formElement, onComplete) {
 
   if (!incomingWithAction) {
     addStamp(true);
+    playStampSound();
     showToast('¡Bienvenido! Tienes tu 1er sello de regalo', 'success');
   } else {
     showToast('¡Cuenta creada! Procesando tu sello...', 'info');

@@ -1,10 +1,11 @@
 /**
- * Hoja de estilos de la Tarjeta de Lealtad - FidelizaCard
+ * Hoja de estilos de la Tarjeta de Lealtad - FidelizaCard (v1.5)
  * Responsabilidades:
  * - Estructura de la tarjeta, cabecera de cliente y cuadricula de sellos
  * - Capsula sobria de recompensa con acento ambar
  * - Boton ergonomico de WhatsApp con color de marca oficial
- * - Acceso a resenas de Google Maps en formato chip translucido
+ * - Bloque destacado post-canje para resenas en Google Maps
+ * - Barra dinamica de redes sociales en el pie de la tarjeta
  * Reglas estrictas: Maximo 300 lineas, cero barras verticales
  */
 
@@ -135,7 +136,6 @@
   color: var(--color-gold);
 }
 
-/* Bloque inferior y respiracion de elementos */
 .card-status-box {
   margin-top: 18px;
   display: flex;
@@ -152,7 +152,6 @@
   padding: 0 8px;
 }
 
-/* Capsula sobria de recompensa */
 .reward-capsule {
   background: linear-gradient(145deg, rgba(251, 191, 36, 0.08), rgba(15, 23, 42, 0.7));
   border: 1px solid rgba(251, 191, 36, 0.25);
@@ -179,7 +178,6 @@
   letter-spacing: -0.01em;
 }
 
-/* Botonera de acciones directas */
 .card-quick-actions {
   display: flex;
   flex-direction: column;
@@ -187,7 +185,6 @@
   width: 100%;
 }
 
-/* Boton oficial WhatsApp */
 .btn-whatsapp-order {
   display: flex;
   align-items: center;
@@ -211,32 +208,45 @@
   filter: brightness(0.92);
 }
 
-/* Chip directo para resenas en Google Maps */
-.btn-maps-direct,
-.btn-link-subtle {
+.post-redeem-review-box {
+  background: linear-gradient(145deg, rgba(251, 191, 36, 0.14), rgba(15, 23, 42, 0.9));
+  border: 1px solid var(--color-gold);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  box-shadow: 0 6px 20px var(--color-gold-glow);
+}
+
+.post-redeem-text {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.btn-maps-highlight {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 6px;
   width: 100%;
-  min-height: 42px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: var(--text-secondary);
-  font-size: 0.82rem;
-  font-weight: 600;
+  min-height: 44px;
+  background: var(--color-gold);
+  color: #030712;
+  font-size: 0.88rem;
+  font-weight: 800;
   text-decoration: none;
   border-radius: 12px;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  transition: transform var(--transition-fast);
 }
 
-.btn-maps-direct:active,
-.btn-link-subtle:active {
-  background: rgba(255, 255, 255, 0.08);
-  color: var(--text-primary);
+.btn-maps-highlight:active {
+  transform: scale(0.98);
 }
 
-/* Estado de premio desbloqueado */
 .card-status-box.reward-active {
   background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.9));
   border: 1px solid var(--color-emerald);
@@ -274,6 +284,48 @@
   font-size: 0.95rem;
   font-weight: 800;
   cursor: pointer;
+}
+
+.card-socials-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.socials-bar-label {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.socials-links-row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+}
+
+.social-chip-link {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-full);
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--transition-fast), color var(--transition-fast);
+}
+
+.social-chip-link:active {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
 }
 
 @keyframes stampPop {

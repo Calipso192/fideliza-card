@@ -1,11 +1,11 @@
 /**
- * Servicio de persistencia y estado local - FidelizaCard (Fase 1 Llave en Mano)
+ * Servicio de persistencia y estado local - FidelizaCard (v1.5)
  * Responsabilidades:
  * - Conexion con configuracion estatica de fabrica (scripts/config.js)
- * - Persistencia del cliente, visitas y sellos en localStorage
+ * - Persistencia del cliente, visitas, sellos y estado post-canje en localStorage
  * - Normalizacion automatica de campos (phone/whatsapp y birthday/birthdate)
  * - Candado antifraude de 3 horas para mostrador y bypass para delivery
- * - Asignacion directa de sellos (?setStamps=X) y control de tokens usados
+ * - Generacion de codigo unico de cupon delivery y control de tokens usados
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
@@ -21,9 +21,11 @@ export function getConfig() {
   const logoVal = b.logo ? b.logo : '';
   const targetVal = b.targetStamps ? Number(b.targetStamps) : 8;
   const rewardVal = b.rewardDescription ? b.rewardDescription : 'Premio sorpresa';
+  const pinVal = b.cashierPin ? String(b.cashierPin) : '1234';
   const phoneVal = b.whatsappDelivery ? b.whatsappDelivery : '';
   const msgVal = b.whatsappMessage ? b.whatsappMessage : '';
   const mapsVal = b.googleMapsReviewUrl ? b.googleMapsReviewUrl : '';
+  const socialsVal = b.socials ? b.socials : {};
 
   return {
     name: nameVal,
@@ -32,14 +34,19 @@ export function getConfig() {
     businessLogo: logoVal,
     targetStamps: targetVal,
     rewardDescription: rewardVal,
+    cashierPin: pinVal,
     whatsappDelivery: phoneVal,
     whatsappMessage: msgVal,
-    googleMapsReviewUrl: mapsVal
+    googleMapsReviewUrl: mapsVal,
+    socials: {
+      instagramUrl: socialsVal.instagramUrl ? socialsVal.instagramUrl : '',
+      tiktokUrl: socialsVal.tiktokUrl ? socialsVal.tiktokUrl : '',
+      facebookUrl: socialsVal.facebookUrl ? socialsVal.facebookUrl : ''
+    }
   };
 }
 
 export function saveConfig() {
-  // En Fase 1 la configuracion es estatica de fabrica desde scripts/config.js
   return true;
 }
 
@@ -223,6 +230,7 @@ export function addStamp(bypassCooldown) {
   }
 
   customer.stamps = currentStamps;
+  customer.justRedeemed = false;
   customer.lastStampTime = Date.now();
   customer.lastVisitDate = new Date().toISOString().split('T')[0];
 
@@ -249,6 +257,7 @@ export function setCustomerStamps(count) {
   const parsedCount = Math.max(0, Math.min(Number(count), targetStamps));
 
   customer.stamps = parsedCount;
+  customer.justRedeemed = false;
   customer.lastStampTime = Date.now();
   customer.lastVisitDate = new Date().toISOString().split('T')[0];
 
@@ -265,6 +274,25 @@ export function setCustomerStamps(count) {
   };
 }
 
+export function getOrCreateRewardVoucherCode() {
+  const customer = getCustomer();
+  if (!customer) {
+    return 'CUPON-0000';
+  }
+  const cycleNum = customer.cycle ? Number(customer.cycle) : 1;
+  if (customer.activeVoucherCode) {
+    if (customer.activeVoucherCycle === cycleNum) {
+      return customer.activeVoucherCode;
+    }
+  }
+  const randomDigits = Math.floor(1000 + Math.random() * 9000);
+  const code = 'C' + cycleNum + '-' + randomDigits;
+  customer.activeVoucherCode = code;
+  customer.activeVoucherCycle = cycleNum;
+  saveCustomer(customer);
+  return code;
+}
+
 export function claimRewardAndNewCycle() {
   const customer = getCustomer();
   if (!customer) {
@@ -273,6 +301,9 @@ export function claimRewardAndNewCycle() {
 
   customer.stamps = 0;
   customer.cycle = (customer.cycle ? Number(customer.cycle) : 1) + 1;
+  customer.justRedeemed = true;
+  customer.activeVoucherCode = '';
+  customer.activeVoucherCycle = 0;
   customer.lastStampTime = Date.now();
   customer.lastVisitDate = new Date().toISOString().split('T')[0];
 

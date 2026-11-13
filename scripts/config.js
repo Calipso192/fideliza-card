@@ -1,7 +1,8 @@
 /**
- * Configuracion estatica de fabrica - FidelizaCard (Fase 1 Llave en Mano)
+ * Configuracion estatica de fabrica - FidelizaCard (v1.5)
  * Responsabilidades:
- * - Centralizar datos de marca, metas de recompensa y canales del negocio
+ * - Centralizar datos de marca, metas de recompensa, PIN de cajero y canales del negocio
+ * - Centralizar redes sociales dinamicas (Instagram, TikTok y Facebook)
  * - Centralizar plantilla de mensajes para la secuencia de notificaciones locales
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
@@ -12,9 +13,15 @@ export const CONFIG = {
     logo: 'assets/logo.png',
     targetStamps: 8,
     rewardDescription: '1 Hamburguesa Clasica + Gaseosa',
-    whatsappDelivery: '51999999999',
+    cashierPin: '1234',
+    whatsappDelivery: '51918760291',
     whatsappMessage: '¡Hola! Quiero hacer un pedido por delivery y sumar sellos a mi tarjeta.',
-    googleMapsReviewUrl: 'https://maps.google.com'
+    googleMapsReviewUrl: 'https://maps.google.com',
+    socials: {
+      instagramUrl: 'https://instagram.com',
+      tiktokUrl: 'https://tiktok.com',
+      facebookUrl: ''
+    }
   },
   notifications: {
     day5Reminder: '¿Con antojo hoy? Tienes {stamps} sellos esperandote en {business}. ¡Vuelve por tu favorito! 🍔',

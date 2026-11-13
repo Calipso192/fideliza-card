@@ -1,15 +1,17 @@
 /**
- * Orquestador principal de la aplicacion Cliente - FidelizaCard
+ * Orquestador principal de la aplicacion Cliente - FidelizaCard (v1.5)
  * Responsabilidades:
  * - Montaje modular sobre #main-content (Formulario Onboarding vs Tarjeta Activa)
  * - Sincronizacion de marca e imagotipo desde scripts/config.js
  * - Procesamiento de sellos por delivery (?claim=), reposicion (?setStamps=) y QR (?scan=)
- * - Secuencia automatica de reenganche (Día 5, Día 10 y Cumpleaños)
- * - Modal táctil de restablecimiento sobre #modal-container
+ * - Efectos de sonido sintetizados con Web Audio API al sellar o desbloquear premio
+ * - Secuencia automatica de reenganche (Dia 5, Dia 10 y Cumpleanos)
+ * - Modal tactil de restablecimiento sobre #modal-container
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
 import { qs, createElement, showToast, triggerHaptic } from './utils/dom.js';
+import { playStampSound, playRewardFanfare } from './utils/sound-fx.js';
 import {
   getConfig,
   getCustomer,
@@ -130,6 +132,17 @@ function preFillPhoneFromUrl() {
   }
 }
 
+function notifyStampSuccess(res, customMessage) {
+  triggerHaptic(60);
+  showToast(customMessage, 'success');
+  if (res.rewardUnlocked) {
+    playRewardFanfare();
+    showToast('¡Felicidades! Desbloqueaste tu premio', 'success');
+  } else {
+    playStampSound();
+  }
+}
+
 function processUrlParameters() {
   const urlParams = new URLSearchParams(window.location.search);
   const claim = urlParams.get('claim');
@@ -149,6 +162,11 @@ function processUrlParameters() {
       const res = setCustomerStamps(count);
       if (res.success) {
         triggerHaptic(50);
+        if (res.rewardUnlocked) {
+          playRewardFanfare();
+        } else {
+          playStampSound();
+        }
         showToast('Sellos ajustados a ' + res.stamps, 'info');
         stateUpdated = true;
       }
@@ -160,22 +178,14 @@ function processUrlParameters() {
       markTokenUsed(claim);
       const res = addStamp(true);
       if (res.success) {
-        triggerHaptic(60);
-        showToast('¡Sello de pedido sumado con exito!', 'success');
-        if (res.rewardUnlocked) {
-          showToast('¡Felicidades! Desbloqueaste tu premio', 'success');
-        }
+        notifyStampSuccess(res, '¡Sello de pedido sumado con exito!');
         stateUpdated = true;
       }
     }
   } else if (hasScan) {
     const res = addStamp(false);
     if (res.success) {
-      triggerHaptic(50);
-      showToast('¡Sello de visita sumado con exito!', 'success');
-      if (res.rewardUnlocked) {
-        showToast('¡Felicidades! Desbloqueaste tu premio', 'success');
-      }
+      notifyStampSuccess(res, '¡Sello de visita sumado con exito!');
       stateUpdated = true;
     } else if (res.reason === 'COOLDOWN') {
       showToast('Sello registrado hoy. Espera ' + res.remainingMinutes + ' min para el siguiente.', 'warning');
