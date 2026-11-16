@@ -1,0 +1,25 @@
+{
+  "name": "BLAP · Caja FidelizaCard",
+  "short_name": "Caja Fideliza",
+  "description": "Panel operativo de mostrador, QR dinamico y despacho delivery",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f7f3eb",
+  "theme_color": "#f7f3eb",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "../assets/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "../assets/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

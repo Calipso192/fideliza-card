@@ -1,7 +1,7 @@
 /**
- * Hoja de estilos Wallet Pass - FidelizaCard (v2.2)
+ * Hoja de estilos Wallet Pass - FidelizaCard (v2.3)
  * Responsabilidades:
- * - Cabecera de marca con logotipo (46px) y nombre del negocio dentro de la tarjeta
+ * - Cabecera de marca con logotipo (46px) y nombre completo del negocio sin recortes
  * - Talon inferior estilo Wallet con titular (MIEMBRO) y contador de sellos sin telefono
  * - Grilla de sellos vectoriales tematicos y fila de acciones tactiles sin scroll
  */
@@ -34,15 +34,16 @@
 .card-brand-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
-  gap: 10px;
+  align-items: flex-start;
+  gap: 8px;
   margin-bottom: 10px;
 }
 
 .card-brand-identity {
   display: flex;
   align-items: center;
-  gap: 11px;
+  gap: 10px;
+  flex: 1;
   min-width: 0;
 }
 
@@ -80,18 +81,16 @@
 }
 
 .card-business-name {
-  font-size: 1.04rem;
+  font-size: 0.96rem;
   font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.01em;
-  line-height: 1.15;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.18;
+  word-break: break-word;
 }
 
 .card-pass-subtitle {
-  font-size: 0.66rem;
+  font-size: 0.64rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -102,13 +101,14 @@
   background: var(--bg-surface);
   border: 1px solid var(--border-card);
   color: var(--color-gold);
-  font-size: 0.68rem;
+  font-size: 0.66rem;
   font-weight: 800;
-  padding: 4px 10px;
+  padding: 4px 9px;
   border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.05em;
   flex-shrink: 0;
+  margin-top: 2px;
 }
 
 .stamps-grid {
@@ -308,6 +308,10 @@
   flex-shrink: 0;
   box-shadow: 0 4px 12px rgba(37, 211, 102, 0.28);
   transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.btn-wa-circle svg {
+  display: block;
 }
 
 .btn-wa-circle:active {

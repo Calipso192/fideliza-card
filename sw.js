@@ -1,5 +1,5 @@
 /**
- * Service Worker Local-First App Cliente - FidelizaCard (v2.2 PWA Dual)
+ * Service Worker Local-First App Cliente - FidelizaCard (v2.3 PWA Dual)
  * Responsabilidades:
  * - Cacheo de archivos estaticos de la tarjeta Wallet Pass para modo sin conexion
  * - Estrategia Cache-First con actualizacion en segundo plano
@@ -7,7 +7,7 @@
  * Reglas estrictas: Vanilla JS puro, cero barras verticales, maximo 300 lineas
  */
 
-const CACHE_NAME = 'fideliza-card-v4';
+const CACHE_NAME = 'fideliza-card-v5';
 
 const STATIC_ASSETS = [
   './',
