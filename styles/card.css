@@ -1,340 +1,436 @@
 /**
- * Hoja de estilos de la Tarjeta de Lealtad - FidelizaCard (v1.5)
+ * Hoja de estilos Wallet Pass - FidelizaCard (v2.2)
  * Responsabilidades:
- * - Estructura de la tarjeta, cabecera de cliente y cuadricula de sellos
- * - Capsula sobria de recompensa con acento ambar
- * - Boton ergonomico de WhatsApp con color de marca oficial
- * - Bloque destacado post-canje para resenas en Google Maps
- * - Barra dinamica de redes sociales en el pie de la tarjeta
- * Reglas estrictas: Maximo 300 lineas, cero barras verticales
+ * - Cabecera de marca con logotipo (46px) y nombre del negocio dentro de la tarjeta
+ * - Talon inferior estilo Wallet con titular (MIEMBRO) y contador de sellos sin telefono
+ * - Grilla de sellos vectoriales tematicos y fila de acciones tactiles sin scroll
  */
 
-.card-wrapper {
+.wallet-pass-wrapper {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  justify-content: space-between;
+  gap: 10px;
   width: 100%;
+  height: 100%;
+  max-height: 640px;
+  margin: auto 0;
 }
 
 .loyalty-card {
-  background: linear-gradient(145deg, #1e293b, #0f172a);
+  background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-lg);
-  padding: 24px 20px;
+  padding: 16px 16px 14px 16px;
   box-shadow: var(--shadow-card);
   position: relative;
-  overflow: hidden;
-  transition: transform var(--transition-normal);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  flex: 1;
+  min-height: 0;
 }
 
-.card-top-row,
-.card-top-bar {
+.card-brand-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
 }
 
-.card-user-meta,
-.customer-meta {
+.card-brand-identity {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  min-width: 0;
+}
+
+.card-brand-logo {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  object-fit: cover;
+  border: 1px solid var(--border-card);
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+  flex-shrink: 0;
+}
+
+.card-brand-fallback {
+  width: 46px;
+  height: 46px;
+  border-radius: var(--radius-md);
+  background: var(--color-stamp-fill);
+  border: 1.5px solid var(--color-gold);
+  color: var(--color-gold);
+  font-size: 1.05rem;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-brand-text {
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
 }
 
-.card-customer-name,
-.customer-name {
-  font-size: 1.25rem;
-  font-weight: 700;
+.card-business-name {
+  font-size: 1.04rem;
+  font-weight: 800;
   color: var(--text-primary);
   letter-spacing: -0.01em;
+  line-height: 1.15;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card-customer-phone,
-.customer-phone {
-  font-size: 0.82rem;
-  font-family: var(--font-family-mono);
-  color: var(--text-secondary);
+.card-pass-subtitle {
+  font-size: 0.66rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--color-gold);
 }
 
-.badge-cycle,
-.cycle-badge {
-  background: rgba(251, 191, 36, 0.12);
+.badge-cycle {
+  background: var(--bg-surface);
   border: 1px solid var(--border-card);
   color: var(--color-gold);
-  font-size: 0.75rem;
-  font-weight: 700;
+  font-size: 0.68rem;
+  font-weight: 800;
   padding: 4px 10px;
   border-radius: var(--radius-full);
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .stamps-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: 9px;
+  margin: auto 0;
+  padding: 4px 0;
 }
 
 .stamp-slot {
   aspect-ratio: 1;
-  background: var(--bg-surface);
-  border: 2px dashed var(--border-subtle);
+  max-height: 64px;
+  width: 100%;
+  margin: 0 auto;
+  background: var(--bg-primary);
+  border: 1.5px dashed var(--border-card);
   border-radius: var(--radius-md);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   position: relative;
-  transition: all var(--transition-fast);
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
   user-select: none;
 }
 
 .stamp-slot.stamped {
-  background: radial-gradient(circle, rgba(251, 191, 36, 0.2) 0%, rgba(15, 23, 42, 0.8) 100%);
-  border: 2px solid var(--color-gold);
-  box-shadow: var(--shadow-glow);
-  animation: stampPop 350ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  background: var(--color-stamp-fill);
+  border: 1.5px solid var(--color-gold);
+  color: var(--color-gold);
+  box-shadow: var(--shadow-sm);
+  animation: stampPop 320ms cubic-bezier(0.175, 0.885, 0.32, 1.275);
 }
 
 .stamp-slot.target-slot {
-  border-color: rgba(251, 191, 36, 0.4);
+  border-color: var(--color-gold);
+  background: var(--color-gold-glow);
 }
 
-.slot-num,
-.stamp-number {
-  font-size: 0.85rem;
+.slot-num {
+  font-size: 0.82rem;
   font-weight: 700;
   color: var(--text-muted);
 }
 
-.slot-icon-check {
-  font-size: 1.15rem;
+.slot-theme-svg {
+  width: 24px;
+  height: 24px;
+  color: var(--color-gold);
+}
+
+.slot-gift-svg {
+  width: 22px;
+  height: 22px;
+  color: var(--color-gold);
+  opacity: 0.9;
+}
+
+.pass-divider {
+  position: relative;
+  border-top: 1.5px dashed var(--border-card);
+  margin: 8px -16px 10px -16px;
+}
+
+.pass-divider::before,
+.pass-divider::after {
+  content: '';
+  position: absolute;
+  top: -7px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-card);
+}
+
+.pass-divider::before {
+  left: -8px;
+}
+
+.pass-divider::after {
+  right: -8px;
+}
+
+.pass-holder-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 9px;
+}
+
+.holder-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.holder-col.align-right {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.holder-label {
+  font-size: 0.62rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-muted);
+}
+
+.holder-name {
+  font-size: 0.94rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.holder-stamps-value {
+  font-size: 0.94rem;
   font-weight: 800;
   color: var(--color-gold);
 }
 
-.slot-icon-gift {
-  font-size: 1.15rem;
-}
-
-.stamps-counter-row,
-.card-footer-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-top: 14px;
-  border-top: 1px solid var(--border-subtle);
-  font-size: 0.82rem;
-  color: var(--text-secondary);
-}
-
-.counter-value,
-.progress-counter {
-  font-weight: 700;
-  color: var(--color-gold);
-}
-
-.card-status-box {
-  margin-top: 18px;
+.reward-capsule {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 7px 12px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: 1px;
   text-align: center;
 }
 
-.card-instruction-text {
-  font-size: 0.82rem;
-  color: var(--text-muted);
-  line-height: 1.45;
-  margin: 0;
-  padding: 0 8px;
-}
-
-.reward-capsule {
-  background: linear-gradient(145deg, rgba(251, 191, 36, 0.08), rgba(15, 23, 42, 0.7));
-  border: 1px solid rgba(251, 191, 36, 0.25);
-  border-radius: 14px;
-  padding: 12px 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  align-items: center;
-}
-
 .reward-capsule-tag {
-  font-size: 0.68rem;
-  font-weight: 700;
+  font-size: 0.62rem;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.07em;
   color: var(--color-gold);
 }
 
 .reward-capsule-name {
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   font-weight: 700;
   color: var(--text-primary);
-  letter-spacing: -0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.card-quick-actions {
+.pass-actions-row {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 10px;
   width: 100%;
+  flex-shrink: 0;
 }
 
-.btn-whatsapp-order {
-  display: flex;
+.btn-scan-pill {
+  flex: 1;
+  height: 48px;
+  background: var(--color-gold);
+  color: #fffdf9;
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 0.92rem;
+  font-weight: 700;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  width: 100%;
-  min-height: 48px;
-  background: #25D366;
-  color: #ffffff;
-  font-size: 0.92rem;
-  font-weight: 700;
-  text-decoration: none;
-  border-radius: 14px;
-  box-shadow: 0 4px 14px rgba(37, 211, 102, 0.25);
-  transition: transform var(--transition-fast), filter var(--transition-fast);
-  user-select: none;
+  cursor: pointer;
+  box-shadow: var(--shadow-glow);
+  transition: background-color var(--transition-fast), transform var(--transition-fast);
 }
 
-.btn-whatsapp-order:active {
+.btn-scan-pill:active {
   transform: scale(0.98);
+  background: var(--color-gold-hover);
+}
+
+.btn-wa-circle {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #25d366;
+  color: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.28);
+  transition: transform var(--transition-fast), filter var(--transition-fast);
+}
+
+.btn-wa-circle:active {
+  transform: scale(0.94);
   filter: brightness(0.92);
 }
 
-.post-redeem-review-box {
-  background: linear-gradient(145deg, rgba(251, 191, 36, 0.14), rgba(15, 23, 42, 0.9));
-  border: 1px solid var(--color-gold);
-  border-radius: 14px;
-  padding: 14px;
+.reward-unlocked-panel {
+  background: var(--color-emerald-soft);
+  border: 1.5px solid var(--color-emerald);
+  border-radius: var(--radius-lg);
+  padding: 11px 14px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  box-shadow: 0 6px 20px var(--color-gold-glow);
-}
-
-.post-redeem-text {
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin: 0;
-  line-height: 1.4;
-}
-
-.btn-maps-highlight {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  width: 100%;
-  min-height: 44px;
-  background: var(--color-gold);
-  color: #030712;
-  font-size: 0.88rem;
-  font-weight: 800;
-  text-decoration: none;
-  border-radius: 12px;
-  transition: transform var(--transition-fast);
-}
-
-.btn-maps-highlight:active {
-  transform: scale(0.98);
-}
-
-.card-status-box.reward-active {
-  background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(15, 23, 42, 0.9));
-  border: 1px solid var(--color-emerald);
-  border-radius: var(--radius-lg);
-  padding: 18px;
-  box-shadow: 0 8px 24px var(--color-emerald-glow);
+  gap: 5px;
+  text-align: center;
+  flex-shrink: 0;
 }
 
 .reward-title {
-  font-size: 1.15rem;
+  font-size: 0.98rem;
   font-weight: 800;
   color: var(--color-emerald);
-  margin: 0;
 }
 
 .reward-desc-text {
-  font-size: 0.9rem;
+  font-size: 0.82rem;
+  font-weight: 600;
   color: var(--text-primary);
-  margin: 0;
-}
-
-.reward-instruction {
-  font-size: 0.8rem;
-  color: var(--text-secondary);
-  margin: 0;
 }
 
 .btn-claim {
   width: 100%;
-  min-height: 48px;
+  height: 44px;
   background: var(--color-emerald);
-  color: #030712;
+  color: #fffdf9;
   border: none;
-  border-radius: 14px;
-  font-size: 0.95rem;
-  font-weight: 800;
+  border-radius: var(--radius-full);
+  font-size: 0.9rem;
+  font-weight: 700;
   cursor: pointer;
+}
+
+.post-redeem-review-box {
+  background: var(--color-stamp-fill);
+  border: 1px solid var(--color-gold);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.post-redeem-text {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  line-height: 1.25;
+}
+
+.btn-maps-highlight {
+  background: var(--color-gold);
+  color: #fffdf9;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-decoration: none;
+  padding: 7px 12px;
+  border-radius: var(--radius-full);
+  white-space: nowrap;
+  flex-shrink: 0;
 }
 
 .card-socials-bar {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  padding-top: 8px;
-  border-top: 1px solid var(--border-subtle);
+  gap: 10px;
+  padding-top: 2px;
+  flex-shrink: 0;
 }
 
 .socials-bar-label {
-  font-size: 0.76rem;
+  font-size: 0.72rem;
   color: var(--text-muted);
   font-weight: 600;
 }
 
 .socials-links-row {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  align-items: center;
   gap: 8px;
 }
 
-.social-chip-link {
+.social-icon-link {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: var(--bg-card);
+  border: 1px solid var(--border-card);
+  color: var(--text-secondary);
   display: inline-flex;
   align-items: center;
-  padding: 6px 12px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--border-subtle);
-  border-radius: var(--radius-full);
-  color: var(--text-secondary);
-  font-size: 0.78rem;
-  font-weight: 600;
+  justify-content: center;
   text-decoration: none;
-  transition: background var(--transition-fast), color var(--transition-fast);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--transition-fast), color var(--transition-fast), border-color var(--transition-fast);
 }
 
-.social-chip-link:active {
-  background: rgba(255, 255, 255, 0.1);
-  color: var(--text-primary);
+.social-icon-link:active {
+  transform: scale(0.92);
+  color: var(--color-gold);
+  border-color: var(--color-gold);
 }
 
 @keyframes stampPop {
   0% {
-    transform: scale(0.5) rotate(-15deg);
+    transform: scale(0.55) rotate(-12deg);
     opacity: 0;
   }
   70% {
-    transform: scale(1.15) rotate(4deg);
+    transform: scale(1.12) rotate(3deg);
   }
   100% {
     transform: scale(1) rotate(0deg);

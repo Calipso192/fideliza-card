@@ -1,18 +1,20 @@
 /**
- * Componente Tarjeta de Lealtad - FidelizaCard (v1.5)
+ * Componente Tarjeta Wallet Pass - FidelizaCard (v2.2)
  * Responsabilidades:
- * - Renderizado adaptativo de sellos segun meta estatica (6, 8 o 10)
- * - Apertura del modal de canje blindado al completar los sellos
- * - Disparador de resena en Google Maps exclusivamente tras completar un canje
- * - Renderizado dinamico de redes sociales (Instagram, TikTok, Facebook)
+ * - Cabecera interna de marca con logotipo (46px) y nombre del negocio
+ * - Talon inferior estilo Wallet con titular (MIEMBRO) y sellos sin telefono
+ * - Grilla de sellos vectoriales tematicos y fila de acciones tactiles sin scroll
+ * - Disparador post-canje de resena en Google Maps e iconos SVG de redes
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
-import { createElement, triggerHaptic, maskPhone } from '../utils/dom.js';
+import { createElement, triggerHaptic } from '../utils/dom.js';
+import { createStampThemeIcon, createSocialIcon, createUiIcon } from '../utils/icons.js';
 import { getConfig } from '../services/storage-service.js';
 import { openRedeemModal } from './redeem-modal.js';
+import { openQrScannerModal } from './qr-scanner-modal.js';
 
-export function renderLoyaltyCard(container, customer, onUpdate) {
+export function renderLoyaltyCard(container, customer, onUpdate, onScanDecoded) {
   if (!container) {
     return;
   }
@@ -30,32 +32,136 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
 
   container.innerHTML = '';
 
+  const wrapper = createElement('div', { className: 'wallet-pass-wrapper' });
   const card = createElement('div', { className: 'loyalty-card' });
 
-  const cardHeader = createElement('div', { className: 'card-top-row' });
-  const userMeta = createElement('div', { className: 'card-user-meta' });
-  const userName = createElement('h2', {
-    className: 'card-customer-name',
-    textContent: customer.name ? customer.name : 'Cliente'
-  });
+  const cardHeader = buildBrandHeader(config, currentCycle);
+  card.appendChild(cardHeader);
 
-  const rawPhone = customer.phone ? customer.phone : customer.whatsapp;
-  const userPhone = createElement('p', {
-    className: 'card-customer-phone',
-    textContent: maskPhone(rawPhone)
-  });
-  userMeta.appendChild(userName);
-  userMeta.appendChild(userPhone);
+  const grid = buildStampsGrid(targetStamps, currentStamps, config.stampIcon);
+  card.appendChild(grid);
+
+  const passBottom = buildPassBottom(customer, config, currentStamps, targetStamps);
+  card.appendChild(passBottom);
+
+  wrapper.appendChild(card);
+
+  if (rewardUnlocked) {
+    const unlockedPanel = buildRewardUnlockedPanel(customer, config, onUpdate);
+    wrapper.appendChild(unlockedPanel);
+  } else {
+    if (showPostRedeemReview) {
+      if (config.googleMapsReviewUrl) {
+        const reviewBox = buildPostRedeemReviewBox(config.googleMapsReviewUrl);
+        wrapper.appendChild(reviewBox);
+      }
+    }
+    const actionsRow = buildPassActionsRow(config, onScanDecoded);
+    wrapper.appendChild(actionsRow);
+  }
+
+  const socialsBar = buildSocialsFooter(config.socials);
+  if (socialsBar) {
+    wrapper.appendChild(socialsBar);
+  }
+
+  container.appendChild(wrapper);
+}
+
+function buildBrandHeader(config, currentCycle) {
+  const header = createElement('div', { className: 'card-brand-header' });
+  const identity = createElement('div', { className: 'card-brand-identity' });
+
+  const bizName = config.businessName ? config.businessName : 'FidelizaCard';
+  const initials = bizName.slice(0, 2).toUpperCase();
+
+  if (config.businessLogo) {
+    const logoImg = createElement('img', {
+      className: 'card-brand-logo',
+      src: config.businessLogo,
+      alt: bizName
+    });
+    logoImg.onerror = function () {
+      const fallback = createElement('div', {
+        className: 'card-brand-fallback',
+        textContent: initials
+      });
+      logoImg.replaceWith(fallback);
+    };
+    identity.appendChild(logoImg);
+  } else {
+    identity.appendChild(createElement('div', {
+      className: 'card-brand-fallback',
+      textContent: initials
+    }));
+  }
+
+  const textCol = createElement('div', { className: 'card-brand-text' });
+  textCol.appendChild(createElement('h2', {
+    className: 'card-business-name',
+    textContent: bizName
+  }));
+  textCol.appendChild(createElement('span', {
+    className: 'card-pass-subtitle',
+    textContent: 'Pase Digital VIP'
+  }));
+  identity.appendChild(textCol);
 
   const cycleBadge = createElement('span', {
     className: 'badge-cycle',
     textContent: 'CICLO ' + currentCycle
   });
 
-  cardHeader.appendChild(userMeta);
-  cardHeader.appendChild(cycleBadge);
-  card.appendChild(cardHeader);
+  header.appendChild(identity);
+  header.appendChild(cycleBadge);
+  return header;
+}
 
+function buildPassBottom(customer, config, currentStamps, targetStamps) {
+  const bottom = createElement('div', { className: 'pass-bottom-section' });
+  bottom.appendChild(createElement('div', { className: 'pass-divider' }));
+
+  const holderRow = createElement('div', { className: 'pass-holder-row' });
+
+  const leftCol = createElement('div', { className: 'holder-col' });
+  leftCol.appendChild(createElement('span', {
+    className: 'holder-label',
+    textContent: 'MIEMBRO'
+  }));
+  leftCol.appendChild(createElement('span', {
+    className: 'holder-name',
+    textContent: customer.name ? customer.name : 'Cliente'
+  }));
+
+  const rightCol = createElement('div', { className: 'holder-col align-right' });
+  rightCol.appendChild(createElement('span', {
+    className: 'holder-label',
+    textContent: 'SELLOS'
+  }));
+  rightCol.appendChild(createElement('span', {
+    className: 'holder-stamps-value',
+    textContent: currentStamps + ' / ' + targetStamps
+  }));
+
+  holderRow.appendChild(leftCol);
+  holderRow.appendChild(rightCol);
+  bottom.appendChild(holderRow);
+
+  const rewardCapsule = createElement('div', { className: 'reward-capsule' });
+  rewardCapsule.appendChild(createElement('span', {
+    className: 'reward-capsule-tag',
+    textContent: 'PREMIO AL COMPLETAR'
+  }));
+  rewardCapsule.appendChild(createElement('span', {
+    className: 'reward-capsule-name',
+    textContent: config.rewardDescription
+  }));
+  bottom.appendChild(rewardCapsule);
+
+  return bottom;
+}
+
+function buildStampsGrid(targetStamps, currentStamps, stampIcon) {
   const grid = createElement('div', { className: 'stamps-grid' });
   let cols = 4;
   if (targetStamps === 6) {
@@ -68,138 +174,104 @@ export function renderLoyaltyCard(container, customer, onUpdate) {
   for (let i = 0; i < targetStamps; i++) {
     const isStamped = i < currentStamps;
     const isTarget = i === targetStamps - 1;
-    const slot = createElement('div', {
-      className: 'stamp-slot' + (isStamped ? ' stamped' : '') + (isTarget ? ' target-slot' : '')
-    });
+    const slotClass =
+      'stamp-slot' + (isStamped ? ' stamped' : '') + (isTarget ? ' target-slot' : '');
+    const slot = createElement('div', { className: slotClass });
 
     if (isStamped) {
-      const checkIcon = createElement('span', { className: 'slot-icon-check', textContent: '✓' });
-      slot.appendChild(checkIcon);
+      slot.appendChild(createStampThemeIcon(stampIcon, 'slot-theme-svg', 24));
     } else if (isTarget) {
-      const giftIcon = createElement('span', { className: 'slot-icon-gift', textContent: '🎁' });
-      slot.appendChild(giftIcon);
+      slot.appendChild(createUiIcon('gift', 'slot-gift-svg', 22));
     } else {
-      const num = createElement('span', { className: 'slot-num', textContent: String(i + 1) });
-      slot.appendChild(num);
+      slot.appendChild(createElement('span', {
+        className: 'slot-num',
+        textContent: String(i + 1)
+      }));
     }
 
     grid.appendChild(slot);
   }
-  card.appendChild(grid);
 
-  const counterRow = createElement('div', { className: 'stamps-counter-row' });
-  const counterLabel = createElement('span', { className: 'counter-label', textContent: 'Sellos acumulados: ' });
-  const counterVal = createElement('span', {
-    className: 'counter-value',
-    textContent: currentStamps + ' / ' + targetStamps
+  return grid;
+}
+
+function buildRewardUnlockedPanel(customer, config, onUpdate) {
+  const panel = createElement('div', { className: 'reward-unlocked-panel' });
+  panel.appendChild(createElement('h3', {
+    className: 'reward-title',
+    textContent: '¡Premio Desbloqueado!'
+  }));
+  panel.appendChild(createElement('p', {
+    className: 'reward-desc-text',
+    textContent: config.rewardDescription
+  }));
+
+  const claimBtn = createElement('button', {
+    className: 'btn-claim',
+    type: 'button',
+    textContent: 'Canjear Mi Premio'
   });
-  counterRow.appendChild(counterLabel);
-  counterRow.appendChild(counterVal);
-  card.appendChild(counterRow);
 
-  container.appendChild(card);
+  claimBtn.addEventListener('click', function () {
+    triggerHaptic(50);
+    openRedeemModal(customer, onUpdate);
+  });
 
-  const infoBox = createElement('div', { className: 'card-status-box' });
+  panel.appendChild(claimBtn);
+  return panel;
+}
 
-  if (rewardUnlocked) {
-    infoBox.classList.add('reward-active');
+function buildPostRedeemReviewBox(mapsUrl) {
+  const box = createElement('div', { className: 'post-redeem-review-box' });
+  box.appendChild(createElement('p', {
+    className: 'post-redeem-text',
+    textContent: '¿Disfrutaste tu premio? Apoyanos con 5 estrellas'
+  }));
+  box.appendChild(createElement('a', {
+    className: 'btn-maps-highlight',
+    href: mapsUrl,
+    target: '_blank',
+    rel: 'noopener noreferrer',
+    textContent: 'Calificar'
+  }));
+  return box;
+}
 
-    const celebrationTitle = createElement('h3', {
-      className: 'reward-title',
-      textContent: '¡Premio Desbloqueado! 🎉'
+function buildPassActionsRow(config, onScanDecoded) {
+  const row = createElement('div', { className: 'pass-actions-row' });
+
+  const scanBtn = createElement('button', {
+    type: 'button',
+    className: 'btn-scan-pill'
+  });
+  scanBtn.appendChild(createUiIcon('qr', '', 20));
+  scanBtn.appendChild(createElement('span', { textContent: 'Escanear QR' }));
+
+  scanBtn.addEventListener('click', function () {
+    triggerHaptic(40);
+    openQrScannerModal(onScanDecoded);
+  });
+  row.appendChild(scanBtn);
+
+  if (config.whatsappDelivery) {
+    const cleanPhone = String(config.whatsappDelivery).replace(/\D/g, '');
+    const defaultMsg = '¡Hola! Quiero hacer un pedido por delivery.';
+    const msg = config.whatsappMessage ? config.whatsappMessage : defaultMsg;
+    const waHref = 'https://wa.me/' + cleanPhone + '?text=' + encodeURIComponent(msg);
+
+    const waCircle = createElement('a', {
+      className: 'btn-wa-circle',
+      href: waHref,
+      target: '_blank',
+      rel: 'noopener noreferrer',
+      title: 'Pedir por WhatsApp',
+      'aria-label': 'Pedir por WhatsApp'
     });
-
-    const rewardDesc = createElement('p', {
-      className: 'reward-desc-text',
-      textContent: config.rewardDescription
-    });
-
-    const instruction = createElement('p', {
-      className: 'reward-instruction',
-      textContent: 'Elige si vas a canjear tu premio ahora en caja o en tu proximo pedido delivery.'
-    });
-
-    const claimBtn = createElement('button', {
-      className: 'btn-claim',
-      type: 'button',
-      textContent: 'Canjear Mi Premio Ahora'
-    });
-
-    claimBtn.addEventListener('click', function () {
-      triggerHaptic(50);
-      openRedeemModal(customer, onUpdate);
-    });
-
-    infoBox.appendChild(celebrationTitle);
-    infoBox.appendChild(rewardDesc);
-    infoBox.appendChild(instruction);
-    infoBox.appendChild(claimBtn);
-  } else {
-    if (showPostRedeemReview) {
-      if (config.googleMapsReviewUrl) {
-        const reviewBanner = createElement('div', { className: 'post-redeem-review-box' });
-        const reviewText = createElement('p', {
-          className: 'post-redeem-text',
-          textContent: '¡Disfruta tu premio! Si te gusto la atencion, apoyanos con 5 estrellas:'
-        });
-        const mapsBtn = createElement('a', {
-          className: 'btn-maps-highlight',
-          href: config.googleMapsReviewUrl,
-          target: '_blank',
-          rel: 'noopener noreferrer',
-          textContent: '⭐ Calificar en Google Maps ↗'
-        });
-        reviewBanner.appendChild(reviewText);
-        reviewBanner.appendChild(mapsBtn);
-        infoBox.appendChild(reviewBanner);
-      }
-    }
-
-    const hint = createElement('p', {
-      className: 'card-instruction-text',
-      textContent: 'Presenta tu tarjeta en caja al pagar o abre tu enlace de delivery para sumar sellos.'
-    });
-    infoBox.appendChild(hint);
-
-    const rewardCapsule = createElement('div', { className: 'reward-capsule' });
-    const capsuleTag = createElement('span', {
-      className: 'reward-capsule-tag',
-      textContent: 'META DEL CICLO'
-    });
-    const capsuleName = createElement('span', {
-      className: 'reward-capsule-name',
-      textContent: '🎁 ' + config.rewardDescription
-    });
-    rewardCapsule.appendChild(capsuleTag);
-    rewardCapsule.appendChild(capsuleName);
-    infoBox.appendChild(rewardCapsule);
-
-    const actionsGroup = createElement('div', { className: 'card-quick-actions' });
-
-    if (config.whatsappDelivery) {
-      const cleanPhone = String(config.whatsappDelivery).replace(/\D/g, '');
-      const defaultMsg = '¡Hola! Quiero hacer un pedido por delivery.';
-      const msg = config.whatsappMessage ? config.whatsappMessage : defaultMsg;
-      const encodedMsg = encodeURIComponent(msg);
-      const deliveryBtn = createElement('a', {
-        className: 'btn-whatsapp-order',
-        href: 'https://wa.me/' + cleanPhone + '?text=' + encodedMsg,
-        target: '_blank',
-        rel: 'noopener noreferrer',
-        textContent: '🛵 Pedir por WhatsApp'
-      });
-      actionsGroup.appendChild(deliveryBtn);
-    }
-
-    infoBox.appendChild(actionsGroup);
+    waCircle.appendChild(createUiIcon('whatsapp', '', 24));
+    row.appendChild(waCircle);
   }
 
-  const socialsBar = buildSocialsFooter(config.socials);
-  if (socialsBar) {
-    infoBox.appendChild(socialsBar);
-  }
-
-  container.appendChild(infoBox);
+  return row;
 }
 
 function buildSocialsFooter(socials) {
@@ -207,40 +279,39 @@ function buildSocialsFooter(socials) {
     return null;
   }
 
-  const links = [];
-
+  const items = [];
   if (socials.instagramUrl) {
-    links.push({ label: 'Instagram', url: socials.instagramUrl });
+    items.push({ key: 'instagram', label: 'Instagram', url: socials.instagramUrl });
   }
   if (socials.tiktokUrl) {
-    links.push({ label: 'TikTok', url: socials.tiktokUrl });
+    items.push({ key: 'tiktok', label: 'TikTok', url: socials.tiktokUrl });
   }
   if (socials.facebookUrl) {
-    links.push({ label: 'Facebook', url: socials.facebookUrl });
+    items.push({ key: 'facebook', label: 'Facebook', url: socials.facebookUrl });
   }
 
-  if (links.length === 0) {
+  if (items.length === 0) {
     return null;
   }
 
   const bar = createElement('div', { className: 'card-socials-bar' });
-  const label = createElement('span', {
+  bar.appendChild(createElement('span', {
     className: 'socials-bar-label',
-    textContent: 'Siguenos:'
-  });
-  bar.appendChild(label);
+    textContent: 'Siguenos'
+  }));
 
   const list = createElement('div', { className: 'socials-links-row' });
-
-  for (let i = 0; i < links.length; i++) {
-    const item = links[i];
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i];
     const anchor = createElement('a', {
-      className: 'social-chip-link',
+      className: 'social-icon-link',
       href: item.url,
       target: '_blank',
       rel: 'noopener noreferrer',
-      textContent: item.label + ' ↗'
+      title: item.label,
+      'aria-label': item.label
     });
+    anchor.appendChild(createSocialIcon(item.key, '', 17));
     list.appendChild(anchor);
   }
 

@@ -1,12 +1,15 @@
 /**
- * Componente Formulario de Registro de Cliente - FidelizaCard (v1.5)
- * Responsabilidad: Captura y validacion de datos iniciales con input DD-MM-AAAA
- * Reglas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
+ * Componente Formulario de Registro de Cliente - FidelizaCard (v2.2)
+ * Responsabilidades:
+ * - Mostrar identidad visual del negocio (logo y nombre) en el alta inicial
+ * - Captura y validacion de datos con mascara DD-MM-AAAA
+ * - Asignacion automatica de sello de bienvenida si no hay enlace entrante
+ * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
 import { createElement, showToast, triggerHaptic } from '../utils/dom.js';
 import { playStampSound } from '../utils/sound-fx.js';
-import { saveCustomer, addStamp } from '../services/storage-service.js';
+import { getConfig, saveCustomer, addStamp } from '../services/storage-service.js';
 
 export function renderCustomerForm(container, onComplete) {
   if (!container) {
@@ -15,7 +18,27 @@ export function renderCustomerForm(container, onComplete) {
 
   container.innerHTML = '';
 
+  const config = getConfig();
   const formCard = createElement('div', { className: 'form-card' });
+
+  const brandBanner = createElement('div', { className: 'form-brand-banner' });
+  if (config.businessLogo) {
+    const logoImg = createElement('img', {
+      className: 'form-brand-logo',
+      src: config.businessLogo,
+      alt: config.businessName
+    });
+    logoImg.onerror = function () {
+      logoImg.remove();
+    };
+    brandBanner.appendChild(logoImg);
+  }
+  const brandNameEl = createElement('span', {
+    className: 'form-brand-name',
+    textContent: config.businessName
+  });
+  brandBanner.appendChild(brandNameEl);
+  formCard.appendChild(brandBanner);
 
   const title = createElement('h2', {
     className: 'form-title',
@@ -24,7 +47,7 @@ export function renderCustomerForm(container, onComplete) {
 
   const subtitle = createElement('p', {
     className: 'form-subtitle',
-    textContent: 'Registra tus datos para activar tu tarjeta y acumular tus sellos de recompensa.'
+    textContent: 'Registra tus datos para activar tu pase digital y acumular sellos.'
   });
 
   const form = createElement('form', {
@@ -74,7 +97,7 @@ export function renderCustomerForm(container, onComplete) {
   const birthGroup = createElement('div', { className: 'field-group' });
   const birthLabel = createElement('label', {
     className: 'field-label',
-    textContent: 'Fecha de Cumpleaños (Opcional)',
+    textContent: 'Fecha de Cumpleanos (Opcional)',
     htmlFor: 'customer-birth-input'
   });
   const birthInput = createElement('input', {
@@ -97,7 +120,7 @@ export function renderCustomerForm(container, onComplete) {
   const submitBtn = createElement('button', {
     type: 'submit',
     className: 'btn-primary',
-    textContent: 'Crear Mi Tarjeta'
+    textContent: 'Activar Mi Tarjeta'
   });
 
   form.appendChild(nameGroup);
@@ -184,6 +207,26 @@ function parseAndValidateBirthDate(maskedValue) {
   };
 }
 
+function hasIncomingStampAction() {
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('dyn')) {
+    return true;
+  }
+  if (urlParams.has('rst')) {
+    return true;
+  }
+  if (urlParams.has('claim')) {
+    return true;
+  }
+  if (urlParams.has('scan')) {
+    return true;
+  }
+  if (urlParams.has('sello')) {
+    return true;
+  }
+  return false;
+}
+
 function handleSubmit(formElement, onComplete) {
   const nameInput = formElement.querySelector('#customer-name-input');
   const phoneInput = formElement.querySelector('#customer-phone-input');
@@ -229,33 +272,19 @@ function handleSubmit(formElement, onComplete) {
     return;
   }
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const hasClaim = urlParams.has('claim');
-  const hasScan = urlParams.has('scan') ? true : urlParams.has('sello');
-  const hasSetStamps = urlParams.has('setStamps') ? true : urlParams.has('stamps');
-
-  let incomingWithAction = false;
-  if (hasClaim) {
-    incomingWithAction = true;
-  }
-  if (hasScan) {
-    incomingWithAction = true;
-  }
-  if (hasSetStamps) {
-    incomingWithAction = true;
-  }
+  const incomingWithAction = hasIncomingStampAction();
 
   if (!incomingWithAction) {
     addStamp(true);
     playStampSound();
     showToast('¡Bienvenido! Tienes tu 1er sello de regalo', 'success');
   } else {
-    showToast('¡Cuenta creada! Procesando tu sello...', 'info');
+    showToast('¡Tarjeta activada! Aplicando tus sellos...', 'info');
   }
 
   triggerHaptic(50);
 
   if (typeof onComplete === 'function') {
-    onComplete(saved);
+    onComplete(incomingWithAction);
   }
 }

@@ -1,98 +1,69 @@
 /**
- * Orquestador principal de la aplicacion Cliente - FidelizaCard (v1.5)
+ * Orquestador principal de la aplicacion Cliente - FidelizaCard (v2.2)
  * Responsabilidades:
- * - Montaje modular sobre #main-content (Formulario Onboarding vs Tarjeta Activa)
- * - Sincronizacion de marca e imagotipo desde scripts/config.js
- * - Procesamiento de sellos por delivery (?claim=), reposicion (?setStamps=) y QR (?scan=)
- * - Efectos de sonido sintetizados con Web Audio API al sellar o desbloquear premio
- * - Secuencia automatica de reenganche (Dia 5, Dia 10 y Cumpleanos)
- * - Modal tactil de restablecimiento sobre #modal-container
+ * - Aplicar la paleta cromatica del negocio al iniciar la vista
+ * - Validar y activar el Modo Demo a pantalla completa solo si fue autorizado desde Caja
+ * - Montar tarjeta Wallet Pass o formulario de registro sobre #main-content
+ * - Procesar QR dinamico (?dyn=), reposicion firmada (?rst=), delivery (?claim=) y mostrador (?scan=)
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
-import { qs, createElement, showToast, triggerHaptic } from './utils/dom.js';
+import { qs, showToast, triggerHaptic } from './utils/dom.js';
 import { playStampSound, playRewardFanfare } from './utils/sound-fx.js';
+import { applyBusinessTheme } from './utils/theme-applier.js';
 import {
   getConfig,
   getCustomer,
-  resetCustomer,
   addStamp,
-  setCustomerStamps,
+  claimDynamicQr,
+  claimSignedRestore,
   isTokenUsed,
-  markTokenUsed
+  markTokenUsed,
+  activateDemoFromUrlIfAuthorized,
+  isDemoMode
 } from './services/storage-service.js';
 import { getNotificationTemplates, formatNotificationText } from './config.js';
 import { renderCustomerForm } from './components/customer-form.js';
 import { renderLoyaltyCard } from './components/loyalty-card.js';
+import { renderDemoFloatingBar } from './components/demo-bar.js';
+
+const KEY_LAST_BDAY_TOAST = 'fideliza_last_bday_toast';
+const KEY_LAST_IDLE_TOAST = 'fideliza_last_idle_toast';
 
 document.addEventListener('DOMContentLoaded', function () {
   initApp();
 });
 
 function initApp() {
-  setupHeaderActions();
-  processUrlParameters();
+  applyBusinessTheme();
+  handleDemoEntry();
+  processUrlParameters(window.location.search, true, false);
   routeView();
 }
 
-function updateHeaderBrand() {
-  const config = getConfig();
-  document.title = config.businessName + ' - Tarjeta Digital';
+function handleDemoEntry() {
+  const urlParams = new URLSearchParams(window.location.search);
+  const requestedDemo = urlParams.get('demo') === '1';
 
-  const brandNameEl = qs('.brand-name');
-  if (brandNameEl) {
-    brandNameEl.textContent = config.businessName;
+  if (requestedDemo) {
+    const activated = activateDemoFromUrlIfAuthorized();
+    window.history.replaceState({}, document.title, window.location.pathname);
+    if (activated) {
+      showToast('Modo Demo comercial activo', 'info');
+    } else {
+      showToast('Inicia el Modo Demo desde el panel de caja', 'warning');
+    }
+    return;
   }
 
-  const badgeContainer = qs('.brand-badge');
-  if (badgeContainer) {
-    const existingImg = badgeContainer.querySelector('.header-brand-img');
-    const dot = badgeContainer.querySelector('.brand-dot');
-
-    if (config.businessLogo) {
-      if (dot) {
-        dot.style.display = 'none';
-      }
-      if (existingImg) {
-        existingImg.src = config.businessLogo;
-      } else {
-        const img = createElement('img', {
-          className: 'header-brand-img',
-          src: config.businessLogo,
-          alt: config.businessName
-        });
-        img.style.width = '20px';
-        img.style.height = '20px';
-        img.style.borderRadius = '50%';
-        img.style.objectFit = 'cover';
-        img.style.marginRight = '6px';
-        badgeContainer.prepend(img);
-      }
-    } else {
-      if (existingImg) {
-        existingImg.remove();
-      }
-      if (dot) {
-        dot.style.display = 'inline-block';
-      }
-    }
+  if (isDemoMode()) {
+    activateDemoFromUrlIfAuthorized();
   }
 }
 
-function setupHeaderActions() {
-  const actionsContainer = qs('#header-actions');
-  if (!actionsContainer) {
-    return;
-  }
-  actionsContainer.innerHTML = '';
-  const resetBtn = createElement('button', {
-    type: 'button',
-    className: 'modal-close-btn',
-    textContent: '⚙',
-    title: 'Opciones de tarjeta',
-    onclick: showResetConfirmation
-  });
-  actionsContainer.appendChild(resetBtn);
+function updateDocumentTitle() {
+  const config = getConfig();
+  document.title = config.businessName + ' - Tarjeta Digital';
 }
 
 function routeView() {
@@ -101,24 +72,40 @@ function routeView() {
     return;
   }
 
-  updateHeaderBrand();
+  updateDocumentTitle();
   const customer = getCustomer();
 
   if (!customer) {
-    renderCustomerForm(mainContainer, function () {
-      processUrlParameters();
+    renderDemoFloatingBar(null);
+    renderCustomerForm(mainContainer, function (hasPendingAction) {
+      if (hasPendingAction) {
+        processUrlParameters(window.location.search, true, true);
+      }
       routeView();
     });
     preFillPhoneFromUrl();
     return;
   }
 
-  renderLoyaltyCard(mainContainer, customer, function () {
+  renderLoyaltyCard(
+    mainContainer,
+    customer,
+    function () {
+      routeView();
+    },
+    function (scannedPayload) {
+      processUrlParameters(scannedPayload, false, false);
+    }
+  );
+
+  renderDemoFloatingBar(function () {
     routeView();
   });
 
-  checkBirthdayNotification(customer);
-  checkInactivityReminder(customer);
+  if (!isDemoMode()) {
+    checkBirthdayNotification(customer);
+    checkInactivityReminder(customer);
+  }
 }
 
 function preFillPhoneFromUrl() {
@@ -143,10 +130,39 @@ function notifyStampSuccess(res, customMessage) {
   }
 }
 
-function processUrlParameters() {
-  const urlParams = new URLSearchParams(window.location.search);
+function extractSearchParams(rawInput) {
+  if (!rawInput) {
+    return new URLSearchParams('');
+  }
+  const str = String(rawInput).trim();
+  if (str.indexOf('http://') === 0) {
+    try {
+      return new URL(str).searchParams;
+    } catch (e) {
+      return new URLSearchParams('');
+    }
+  }
+  if (str.indexOf('https://') === 0) {
+    try {
+      return new URL(str).searchParams;
+    } catch (e) {
+      return new URLSearchParams('');
+    }
+  }
+  const qIndex = str.indexOf('?');
+  if (qIndex !== -1) {
+    return new URLSearchParams(str.substring(qIndex));
+  }
+  return new URLSearchParams(str);
+}
+
+function processUrlParameters(rawInput, isFromBrowserUrl, isFreshSignup) {
+  const urlParams = extractSearchParams(rawInput);
+  const dynToken = urlParams.get('dyn');
+  const rstToken = urlParams.get('rst');
+  const stampsParam = urlParams.get('s');
+  const expParam = urlParams.get('exp');
   const claim = urlParams.get('claim');
-  const setStamps = urlParams.get('setStamps') ? urlParams.get('setStamps') : urlParams.get('stamps');
   const hasScan = urlParams.has('scan') ? true : urlParams.has('sello');
 
   const customer = getCustomer();
@@ -155,23 +171,46 @@ function processUrlParameters() {
   }
 
   let stateUpdated = false;
+  let recognizedParam = false;
 
-  if (setStamps !== null && setStamps !== undefined) {
-    const count = parseInt(setStamps, 10);
-    if (!isNaN(count)) {
-      const res = setCustomerStamps(count);
-      if (res.success) {
-        triggerHaptic(50);
-        if (res.rewardUnlocked) {
-          playRewardFanfare();
-        } else {
-          playStampSound();
-        }
-        showToast('Sellos ajustados a ' + res.stamps, 'info');
-        stateUpdated = true;
+  if (dynToken) {
+    recognizedParam = true;
+    const count = stampsParam ? parseInt(stampsParam, 10) : 1;
+    const res = claimDynamicQr(dynToken, count, expParam);
+    if (res.success) {
+      notifyStampSuccess(res, res.message);
+      stateUpdated = true;
+    } else if (isFreshSignup) {
+      addStamp(true);
+      playStampSound();
+      showToast('El QR caduco, pero recibiste tu 1er sello de bienvenida', 'info');
+      stateUpdated = true;
+    } else {
+      showToast(res.message, 'warning');
+    }
+  } else if (rstToken) {
+    recognizedParam = true;
+    const count = stampsParam ? parseInt(stampsParam, 10) : 1;
+    const res = claimSignedRestore(rstToken, count, expParam);
+    if (res.success) {
+      triggerHaptic(50);
+      if (res.rewardUnlocked) {
+        playRewardFanfare();
+      } else {
+        playStampSound();
       }
+      showToast('Sellos restituidos a ' + res.stamps, 'success');
+      stateUpdated = true;
+    } else if (isFreshSignup) {
+      addStamp(true);
+      playStampSound();
+      showToast('Enlace caducado. Recibiste tu 1er sello de bienvenida', 'info');
+      stateUpdated = true;
+    } else {
+      showToast(res.message, 'warning');
     }
   } else if (claim) {
+    recognizedParam = true;
     if (isTokenUsed(claim)) {
       showToast('Este sello de pedido ya fue reclamado', 'warning');
     } else {
@@ -183,6 +222,7 @@ function processUrlParameters() {
       }
     }
   } else if (hasScan) {
+    recognizedParam = true;
     const res = addStamp(false);
     if (res.success) {
       notifyStampSuccess(res, '¡Sello de visita sumado con exito!');
@@ -190,92 +230,25 @@ function processUrlParameters() {
     } else if (res.reason === 'COOLDOWN') {
       showToast('Sello registrado hoy. Espera ' + res.remainingMinutes + ' min para el siguiente.', 'warning');
     }
+  } else if (!isFromBrowserUrl) {
+    showToast('El codigo escaneado no pertenece a esta tarjeta', 'error');
   }
 
-  let shouldClean = false;
-  if (claim) {
-    shouldClean = true;
-  }
-  if (setStamps !== null && setStamps !== undefined) {
-    shouldClean = true;
-  }
-  if (hasScan) {
-    shouldClean = true;
-  }
-
-  if (shouldClean) {
-    window.history.replaceState({}, document.title, window.location.pathname);
+  if (isFromBrowserUrl) {
+    if (recognizedParam) {
+      window.history.replaceState({}, document.title, window.location.pathname);
+    }
   }
 
   if (stateUpdated) {
-    routeView();
-  }
-}
-
-function showResetConfirmation() {
-  const modalContainer = qs('#modal-container');
-  if (!modalContainer) {
-    return;
-  }
-  modalContainer.innerHTML = '';
-  modalContainer.classList.remove('hidden');
-  modalContainer.setAttribute('aria-hidden', 'false');
-
-  const dialog = createElement('div', { className: 'modal-dialog' });
-  const header = createElement('div', { className: 'modal-header' });
-  const title = createElement('h3', { className: 'modal-title', textContent: 'Restablecer Tarjeta' });
-  const closeBtn = createElement('button', {
-    type: 'button',
-    className: 'modal-close-btn',
-    textContent: '✕',
-    onclick: closeModal
-  });
-  header.appendChild(title);
-  header.appendChild(closeBtn);
-
-  const body = createElement('div', {
-    className: 'modal-body',
-    textContent: '¿Deseas reiniciar tu tarjeta? Esta accion borrara los sellos acumulados en este dispositivo.'
-  });
-
-  const actions = createElement('div', { className: 'modal-actions' });
-  const cancelBtn = createElement('button', {
-    type: 'button',
-    className: 'btn-secondary',
-    textContent: 'Cancelar',
-    onclick: closeModal
-  });
-  const confirmBtn = createElement('button', {
-    type: 'button',
-    className: 'btn-primary',
-    textContent: 'Si, Restablecer',
-    onclick: function () {
-      resetCustomer();
-      closeModal();
-      triggerHaptic(40);
-      showToast('Tarjeta restablecida', 'info');
+    if (!isFreshSignup) {
       routeView();
     }
-  });
-
-  actions.appendChild(cancelBtn);
-  actions.appendChild(confirmBtn);
-
-  dialog.appendChild(header);
-  dialog.appendChild(body);
-  dialog.appendChild(actions);
-
-  modalContainer.appendChild(dialog);
+  }
 }
 
-function closeModal() {
-  const modalContainer = qs('#modal-container');
-  if (!modalContainer) {
-    return;
-  }
-  modalContainer.classList.add('hidden');
-  modalContainer.setAttribute('aria-hidden', 'true');
-  modalContainer.innerHTML = '';
+function getTodayIsoString() {
+  return new Date().toISOString().split('T')[0];
 }
 
 function checkBirthdayNotification(customer) {
@@ -283,11 +256,13 @@ function checkBirthdayNotification(customer) {
   if (!birth) {
     return;
   }
-  const today = new Date();
-  const m = String(today.getMonth() + 1).padStart(2, '0');
-  const d = String(today.getDate()).padStart(2, '0');
-  const todayMmDd = m + '-' + d;
+  const todayStr = getTodayIsoString();
+  if (localStorage.getItem(KEY_LAST_BDAY_TOAST) === todayStr) {
+    return;
+  }
 
+  const today = new Date();
+  const todayMmDd = String(today.getMonth() + 1).padStart(2, '0') + '-' + String(today.getDate()).padStart(2, '0');
   const parts = birth.split('-');
   let birthMmDd = '';
   if (parts.length === 3) {
@@ -297,6 +272,7 @@ function checkBirthdayNotification(customer) {
   }
 
   if (birthMmDd === todayMmDd) {
+    localStorage.setItem(KEY_LAST_BDAY_TOAST, todayStr);
     const config = getConfig();
     const templates = getNotificationTemplates();
     const msg = formatNotificationText(templates.birthdayGreeting, {
@@ -311,15 +287,18 @@ function checkInactivityReminder(customer) {
   if (!customer.lastVisitDate) {
     return;
   }
-  const lastDate = new Date(customer.lastVisitDate);
-  const today = new Date();
-  const diffTime = today.getTime() - lastDate.getTime();
-  const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+  const todayStr = getTodayIsoString();
+  if (localStorage.getItem(KEY_LAST_IDLE_TOAST) === todayStr) {
+    return;
+  }
 
+  const lastDate = new Date(customer.lastVisitDate);
+  const diffDays = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
   if (diffDays < 5) {
     return;
   }
 
+  localStorage.setItem(KEY_LAST_IDLE_TOAST, todayStr);
   const config = getConfig();
   const templates = getNotificationTemplates();
   const stamps = customer.stamps ? Number(customer.stamps) : 0;
@@ -327,17 +306,15 @@ function checkInactivityReminder(customer) {
   const remaining = Math.max(0, target - stamps);
 
   if (diffDays >= 10) {
-    const msg = formatNotificationText(templates.day10Reminder, {
+    showToast(formatNotificationText(templates.day10Reminder, {
       business: config.businessName,
       remaining: remaining,
       reward: config.rewardDescription
-    });
-    showToast(msg, 'info');
+    }), 'info');
   } else {
-    const msg = formatNotificationText(templates.day5Reminder, {
+    showToast(formatNotificationText(templates.day5Reminder, {
       stamps: stamps,
       business: config.businessName
-    });
-    showToast(msg, 'info');
+    }), 'info');
   }
 }

@@ -1,0 +1,311 @@
+/* Estilos Modulares de Funciones Operativas - FidelizaCard (v2.2) */
+
+/* 1. QR Dinamico Multi-Sello en Panel de Caja */
+.dyn-stamps-selector {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.dyn-stamp-btn {
+  min-height: var(--touch-target-min);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.dyn-stamp-btn.active {
+  background: var(--color-stamp-fill);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  box-shadow: var(--shadow-sm);
+}
+
+.dyn-stamp-btn:active {
+  transform: scale(0.97);
+}
+
+.dyn-qr-badge {
+  background: var(--color-gold);
+  color: #fffdf9;
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  padding: 5px 14px;
+  border-radius: var(--radius-full);
+  margin-bottom: 10px;
+}
+
+.dyn-qr-timer {
+  margin-top: 10px;
+  margin-bottom: 10px;
+  font-family: var(--font-family-mono);
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--color-emerald);
+}
+
+.dyn-qr-timer.expired {
+  color: var(--color-ruby);
+}
+
+/* 2. Interfaz de Escaner QR Interno (App Cliente) */
+.scanner-viewport {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-height: 250px;
+  background: #1c1612;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  border: 1px solid var(--border-card);
+  margin: 8px 0;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.scanner-frame-overlay {
+  position: absolute;
+  inset: 18%;
+  border: 2px solid var(--color-gold);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 9999px rgba(44, 34, 26, 0.5);
+  pointer-events: none;
+}
+
+.scanner-laser-line {
+  position: absolute;
+  left: 6%;
+  right: 6%;
+  height: 2px;
+  background: var(--color-emerald);
+  box-shadow: 0 0 8px var(--color-emerald);
+  animation: scanLaser 2s ease-in-out infinite;
+}
+
+@keyframes scanLaser {
+  0% {
+    top: 10%;
+  }
+  50% {
+    top: 88%;
+  }
+  100% {
+    top: 10%;
+  }
+}
+
+.scanner-status-text {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-bottom: 8px;
+}
+
+.scanner-manual-box {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border-card);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* 3. Deslizador Tactil Slide-to-Confirm */
+.slide-confirm-track {
+  position: relative;
+  width: 100%;
+  height: 52px;
+  background: var(--bg-primary);
+  border: 1.5px solid var(--border-card);
+  border-radius: var(--radius-full);
+  overflow: hidden;
+  user-select: none;
+  touch-action: pan-y;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.slide-confirm-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 0%;
+  background: var(--color-emerald-soft);
+  pointer-events: none;
+}
+
+.slide-confirm-label {
+  position: relative;
+  z-index: 1;
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  padding-left: 34px;
+  pointer-events: none;
+}
+
+.slide-confirm-thumb {
+  position: absolute;
+  left: 4px;
+  top: 3px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--color-emerald);
+  color: #fffdf9;
+  font-size: 1.1rem;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 2;
+  box-shadow: var(--shadow-sm);
+}
+
+.slide-confirm-thumb:active {
+  cursor: grabbing;
+}
+
+.slide-confirm-track.confirmed {
+  border-color: var(--color-emerald);
+  background: var(--color-emerald-soft);
+}
+
+/* 4. Lanzador Comercial Demo en Panel Admin */
+.demo-launch-card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border-card);
+  border-radius: var(--radius-md);
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.demo-launch-badge {
+  align-self: flex-start;
+  background: var(--color-stamp-fill);
+  border: 1px solid var(--color-gold);
+  color: var(--color-gold);
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+}
+
+.demo-launch-title {
+  font-size: 0.96rem;
+  font-weight: 800;
+  color: var(--text-primary);
+}
+
+.demo-launch-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.demo-launch-item {
+  font-size: 0.8rem;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  padding-left: 14px;
+  position: relative;
+}
+
+.demo-launch-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 6px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--color-gold);
+}
+
+/* 5. Barra Flotante Discreta de Grabacion Demo (Pantalla Completa) */
+.demo-floating-bar {
+  position: fixed;
+  left: 50%;
+  bottom: 10px;
+  transform: translateX(-50%);
+  width: calc(100% - 24px);
+  max-width: 406px;
+  background: rgba(44, 34, 26, 0.92);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 253, 249, 0.16);
+  border-radius: var(--radius-full);
+  padding: 6px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+  z-index: 85;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.28);
+}
+
+.demo-bar-tag {
+  font-size: 0.64rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #f4e4ce;
+  padding: 0 6px;
+  flex-shrink: 0;
+}
+
+.demo-bar-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.demo-bar-btn {
+  height: 32px;
+  padding: 0 9px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(255, 253, 249, 0.18);
+  background: rgba(255, 253, 249, 0.12);
+  color: #fffdf9;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.demo-bar-btn:active {
+  transform: scale(0.94);
+  background: rgba(255, 253, 249, 0.24);
+}
+
+.demo-bar-btn.danger {
+  background: rgba(184, 74, 57, 0.85);
+  border-color: rgba(255, 253, 249, 0.25);
+}

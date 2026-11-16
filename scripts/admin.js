@@ -1,55 +1,88 @@
 /**
- * Logica operativa de mostrador y despacho - FidelizaCard (Fase 1 Llave en Mano)
+ * Orquestador del Panel Operativo de Caja - FidelizaCard (v2.2 PWA Dual)
  * Responsabilidades:
- * - Sincronizacion de marca e imagotipo desde scripts/config.js
- * - Navegacion por pestanas operativas (Despacho, Reposicion, QR Mostrador)
- * - Despacho de sellos por delivery via WhatsApp (?claim=PED-XXX)
- * - Reposicion directa de sellos por QR temporal o WhatsApp (?setStamps=X)
- * - Generacion y descarga del QR estatico para acrilico de mostrador
+ * - Aplicar la paleta cromatica del negocio al iniciar el panel de caja
+ * - Sincronizar identidad de marca e iconos vectoriales en botones operativos
+ * - Gestionar navegacion entre 5 pestanas y emision de QR dinamico multi-sello
+ * - Conectar despacho delivery, reposicion tactil y lanzador Demo pantalla completa
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
-import { qs, qsa, showToast, triggerHaptic } from './utils/dom.js';
+import { qs, qsa, createElement, showToast, triggerHaptic } from './utils/dom.js';
+import { createUiIcon } from './utils/icons.js';
+import { applyBusinessTheme } from './utils/theme-applier.js';
 import { getBusinessConfig } from './config.js';
-import { renderQRCode, downloadQRCode } from './utils/qr-generator.js';
+import { renderQRCode } from './utils/qr-generator.js';
+import {
+  setupDeliveryDispatch,
+  setupStampsRestore,
+  setupCounterQr
+} from './components/admin-ops.js';
+import { renderAdminDemoSimulator } from './components/admin-demo-sim.js';
+
+let dynamicTimerInterval = null;
+let selectedDynamicStamps = 1;
 
 document.addEventListener('DOMContentLoaded', function () {
   initAdmin();
 });
 
 function initAdmin() {
+  applyBusinessTheme();
   renderBrandHeader();
+  decorateAdminButtons();
   setupTabs();
-  setupDeliveryDispatch();
-  setupStampsRestore();
-  setupCounterQr();
+  setupDynamicQr();
+  setupDeliveryDispatch(getBaseClientUrl);
+  setupStampsRestore(getBaseClientUrl);
+  setupCounterQr(getBaseClientUrl);
+  renderAdminDemoSimulator(qs('#demo-sim-container'));
+}
+
+function decorateAdminButtons() {
+  const previewLink = qs('#btn-preview-card');
+  if (previewLink) {
+    previewLink.innerHTML = '';
+    previewLink.appendChild(createUiIcon('external', '', 14));
+    previewLink.appendChild(createElement('span', { textContent: 'Ver Tarjeta' }));
+  }
+
+  const refreshBtn = qs('#btn-refresh-dynamic-qr');
+  if (refreshBtn) {
+    refreshBtn.innerHTML = '';
+    refreshBtn.appendChild(createUiIcon('refresh', '', 17));
+    refreshBtn.appendChild(createElement('span', { textContent: 'Renovar Codigo QR' }));
+  }
 }
 
 function renderBrandHeader() {
   const config = getBusinessConfig();
+  const bizName = config.name ? config.name : 'FidelizaCard';
+  const initials = bizName.slice(0, 2).toUpperCase();
+
   const titleEl = qs('#header-business-name');
   if (titleEl) {
-    titleEl.textContent = config.name ? config.name : 'FidelizaCard';
+    titleEl.textContent = bizName;
   }
 
   const logoBadge = qs('#admin-logo-preview');
-  if (logoBadge) {
-    if (config.logo) {
-      logoBadge.innerHTML = '';
-      const img = document.createElement('img');
-      img.src = config.logo;
-      img.alt = config.name;
-      img.style.width = '100%';
-      img.style.height = '100%';
-      img.style.objectFit = 'cover';
-      img.style.borderRadius = '50%';
-      logoBadge.appendChild(img);
-    } else {
-      const fallback = logoBadge.querySelector('.admin-logo-fallback');
-      if (fallback) {
-        const initials = config.name ? config.name.slice(0, 2).toUpperCase() : 'FC';
-        fallback.textContent = initials;
-      }
+  if (!logoBadge) {
+    return;
+  }
+
+  if (config.logo) {
+    logoBadge.innerHTML = '';
+    const img = document.createElement('img');
+    img.src = config.logo.indexOf('http') === 0 ? config.logo : '../' + config.logo;
+    img.alt = bizName;
+    img.onerror = function () {
+      logoBadge.innerHTML = '<span class="admin-logo-fallback">' + initials + '</span>';
+    };
+    logoBadge.appendChild(img);
+  } else {
+    const fallback = logoBadge.querySelector('.admin-logo-fallback');
+    if (fallback) {
+      fallback.textContent = initials;
     }
   }
 }
@@ -93,7 +126,12 @@ function getBaseClientUrl() {
   }
   const loc = window.location;
   let path = loc.pathname;
-  if (path.indexOf('admin.html') !== -1) {
+  const adminIndexPos = path.indexOf('/admin/');
+  if (adminIndexPos !== -1) {
+    path = path.substring(0, adminIndexPos + 1);
+  } else if (path.endsWith('/admin')) {
+    path = path.substring(0, path.length - 5);
+  } else if (path.indexOf('admin.html') !== -1) {
     path = path.replace('admin.html', '');
   }
   if (!path.endsWith('/')) {
@@ -102,206 +140,100 @@ function getBaseClientUrl() {
   return loc.origin + path;
 }
 
-function renderQr(canvas, text) {
-  if (!canvas) {
+function setupDynamicQr() {
+  const stampBtns = qsa('.dyn-stamp-btn');
+  const generateBtn = qs('#btn-generate-dynamic-qr');
+  const refreshBtn = qs('#btn-refresh-dynamic-qr');
+  const qrBox = qs('#dynamic-qr-box');
+  const canvas = qs('#dynamic-qr-canvas');
+  const badge = qs('#dynamic-qr-badge');
+  const timerEl = qs('#dynamic-qr-timer');
+
+  for (let i = 0; i < stampBtns.length; i++) {
+    stampBtns[i].addEventListener('click', function () {
+      for (let j = 0; j < stampBtns.length; j++) {
+        stampBtns[j].classList.remove('active');
+      }
+      this.classList.add('active');
+      const val = parseInt(this.getAttribute('data-stamps'), 10);
+      selectedDynamicStamps = isNaN(val) ? 1 : val;
+      triggerHaptic(25);
+      if (qrBox) {
+        if (!qrBox.classList.contains('hidden')) {
+          issueDynamicCode();
+        }
+      }
+    });
+  }
+
+  function issueDynamicCode() {
+    if (!canvas) {
+      return;
+    }
+    const now = Date.now();
+    const expiresAt = now + 10 * 60 * 1000;
+    const rand = Math.floor(1000 + Math.random() * 9000);
+    const token = 'DYN-' + now + '-' + rand;
+    const dynamicUrl =
+      getBaseClientUrl() +
+      '?dyn=' +
+      encodeURIComponent(token) +
+      '&s=' +
+      selectedDynamicStamps +
+      '&exp=' +
+      expiresAt;
+
+    renderQRCode(canvas, dynamicUrl);
+
+    if (badge) {
+      const label =
+        selectedDynamicStamps === 1
+          ? '+1 SELLO ACTIVO'
+          : '+' + selectedDynamicStamps + ' SELLOS ACTIVOS';
+      badge.textContent = label;
+    }
+    if (qrBox) {
+      qrBox.classList.remove('hidden');
+    }
+
+    startDynamicCountdown(expiresAt, timerEl);
+    triggerHaptic(45);
+    showToast('QR dinamico generado (' + selectedDynamicStamps + ' sellos)', 'success');
+  }
+
+  if (generateBtn) {
+    generateBtn.addEventListener('click', issueDynamicCode);
+  }
+  if (refreshBtn) {
+    refreshBtn.addEventListener('click', issueDynamicCode);
+  }
+}
+
+function startDynamicCountdown(expiresAt, timerEl) {
+  if (dynamicTimerInterval) {
+    clearInterval(dynamicTimerInterval);
+    dynamicTimerInterval = null;
+  }
+  if (!timerEl) {
     return;
   }
-  renderQRCode(canvas, text);
-}
 
-function setupDeliveryDispatch() {
-  const form = qs('#delivery-form');
-  const copyBtn = qs('#btn-copy-link');
-
-  if (form) {
-    form.addEventListener('submit', function (e) {
-      e.preventDefault();
-      const phoneInput = qs('#delivery-phone');
-      const orderInput = qs('#delivery-order-id');
-
-      const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-      if (rawPhone.length < 9) {
-        showToast('Ingresa un numero de WhatsApp valido', 'error');
-        return;
-      }
-
-      let orderCode = orderInput ? orderInput.value.trim() : '';
-      if (!orderCode) {
-        const randomNum = Math.floor(1000 + Math.random() * 9000);
-        orderCode = 'PED-' + randomNum;
-      }
-
-      const clientUrl = getBaseClientUrl() + '?claim=' + encodeURIComponent(orderCode) + '&tel=' + rawPhone;
-      displayLinkPreview(clientUrl);
-
-      const config = getBusinessConfig();
-      const bizName = config.name ? config.name : 'nuestro local';
-      const msg = '¡Hola! Gracias por tu pedido en ' + bizName + '. Suma tu sello aqui: ' + clientUrl;
-      const waUrl = 'https://wa.me/51' + rawPhone + '?text=' + encodeURIComponent(msg);
-
-      triggerHaptic(50);
-      window.open(waUrl, '_blank');
-      showToast('Enlace enviado a WhatsApp', 'success');
-    });
-  }
-
-  if (copyBtn) {
-    copyBtn.addEventListener('click', function () {
-      const phoneInput = qs('#delivery-phone');
-      const orderInput = qs('#delivery-order-id');
-      const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-
-      let orderCode = orderInput ? orderInput.value.trim() : '';
-      if (!orderCode) {
-        orderCode = 'PED-' + Math.floor(1000 + Math.random() * 9000);
-      }
-
-      let clientUrl = getBaseClientUrl() + '?claim=' + encodeURIComponent(orderCode);
-      if (rawPhone.length >= 9) {
-        clientUrl = clientUrl + '&tel=' + rawPhone;
-      }
-
-      displayLinkPreview(clientUrl);
-      copyToClipboard(clientUrl, 'Enlace manual copiado al portapapeles');
-    });
-  }
-}
-
-function displayLinkPreview(url) {
-  const previewBox = qs('#delivery-link-preview');
-  const previewText = qs('#preview-url-text');
-  if (previewBox && previewText) {
-    previewText.textContent = url;
-    previewBox.classList.remove('hidden');
-  }
-}
-
-function setupStampsRestore() {
-  const countSelect = qs('#restore-stamps-count');
-  const phoneInput = qs('#restore-phone');
-  const btnShowQr = qs('#btn-show-restore-qr');
-  const btnHideQr = qs('#btn-hide-restore-qr');
-  const btnSendWa = qs('#btn-send-restore-whatsapp');
-  const btnCopyLink = qs('#btn-copy-restore-link');
-  const qrBox = qs('#restore-qr-box');
-  const canvas = qs('#restore-qr-canvas');
-  const caption = qs('#restore-qr-caption');
-
-  function buildRestoreUrl() {
-    const stamps = countSelect ? countSelect.value : '1';
-    let url = getBaseClientUrl() + '?setStamps=' + stamps;
-    const rawPhone = phoneInput ? phoneInput.value.replace(/\D/g, '') : '';
-    if (rawPhone.length >= 9) {
-      url = url + '&tel=' + rawPhone;
+  function updateTick() {
+    const remainingMs = expiresAt - Date.now();
+    if (remainingMs <= 0) {
+      clearInterval(dynamicTimerInterval);
+      dynamicTimerInterval = null;
+      timerEl.textContent = 'Codigo caducado · Genera uno nuevo';
+      timerEl.classList.add('expired');
+      return;
     }
-    return { url: url, stamps: stamps, phone: rawPhone };
+    const totalSec = Math.ceil(remainingMs / 1000);
+    const mins = String(Math.floor(totalSec / 60)).padStart(2, '0');
+    const secs = String(totalSec % 60).padStart(2, '0');
+    timerEl.classList.remove('expired');
+    timerEl.textContent = 'Valido por ' + mins + ':' + secs + ' min';
   }
 
-  if (btnShowQr && qrBox && canvas) {
-    btnShowQr.addEventListener('click', function () {
-      const data = buildRestoreUrl();
-      renderQr(canvas, data.url);
-      if (caption) {
-        caption.textContent = 'Escanea para restablecer ' + data.stamps + ' sellos en la tarjeta';
-      }
-      qrBox.classList.remove('hidden');
-      triggerHaptic(40);
-      showToast('QR de reposicion visible en pantalla', 'info');
-    });
-  }
-
-  if (btnHideQr && qrBox) {
-    btnHideQr.addEventListener('click', function () {
-      qrBox.classList.add('hidden');
-    });
-  }
-
-  if (btnSendWa) {
-    btnSendWa.addEventListener('click', function () {
-      const data = buildRestoreUrl();
-      if (data.phone.length < 9) {
-        showToast('Ingresa el WhatsApp del cliente para envio remoto', 'error');
-        if (phoneInput) {
-          phoneInput.focus();
-        }
-        return;
-      }
-
-      const config = getBusinessConfig();
-      const bizName = config.name ? config.name : 'nuestro local';
-      const msg = '¡Hola! Hemos restablecido tus sellos en ' + bizName + '. Abre este enlace: ' + data.url;
-      const waUrl = 'https://wa.me/51' + data.phone + '?text=' + encodeURIComponent(msg);
-
-      triggerHaptic(50);
-      window.open(waUrl, '_blank');
-      showToast('Enlace de reposicion enviado por WhatsApp', 'success');
-    });
-  }
-
-  if (btnCopyLink) {
-    btnCopyLink.addEventListener('click', function () {
-      const data = buildRestoreUrl();
-      copyToClipboard(data.url, 'Enlace de reposicion copiado');
-    });
-  }
-}
-
-function setupCounterQr() {
-  const canvas = qs('#qr-canvas');
-  const downloadBtn = qs('#btn-download-qr');
-  const tabQrBtn = qs('[data-tab="tab-qr"]');
-
-  function drawCounter() {
-    if (canvas) {
-      const counterUrl = getBaseClientUrl() + '?scan=1';
-      renderQr(canvas, counterUrl);
-    }
-  }
-
-  drawCounter();
-
-  if (tabQrBtn) {
-    tabQrBtn.addEventListener('click', function () {
-      setTimeout(drawCounter, 50);
-    });
-  }
-
-  if (downloadBtn && canvas) {
-    downloadBtn.addEventListener('click', function () {
-      triggerHaptic(50);
-      const config = getBusinessConfig();
-      const safeName = config.name ? config.name.toLowerCase().replace(/[^a-z0-9]/g, '-') : 'fidelizacard';
-      const filename = 'qr-mostrador-' + safeName + '.png';
-      downloadQRCode(canvas, filename);
-      showToast('Descargando imagen QR para acrilico', 'success');
-    });
-  }
-}
-
-function copyToClipboard(text, successMessage) {
-  if (navigator.clipboard && navigator.clipboard.writeText) {
-    navigator.clipboard.writeText(text).then(function () {
-      triggerHaptic(40);
-      showToast(successMessage ? successMessage : 'Copiado al portapapeles', 'info');
-    }).catch(function () {
-      fallbackCopy(text, successMessage);
-    });
-  } else {
-    fallbackCopy(text, successMessage);
-  }
-}
-
-function fallbackCopy(text, successMessage) {
-  const input = document.createElement('input');
-  input.value = text;
-  document.body.appendChild(input);
-  input.select();
-  try {
-    document.execCommand('copy');
-    triggerHaptic(40);
-    showToast(successMessage ? successMessage : 'Copiado al portapapeles', 'info');
-  } catch (err) {
-    showToast('No se pudo copiar automaticamente', 'error');
-  }
-  document.body.removeChild(input);
+  updateTick();
+  dynamicTimerInterval = setInterval(updateTick, 1000);
 }

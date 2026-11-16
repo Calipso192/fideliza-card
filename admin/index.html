@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#f7f3eb">
+  <meta name="description" content="Panel operativo de mostrador, QR dinamico y despacho para FidelizaCard">
+  <title>Caja FidelizaCard - Operativa</title>
+
+  <link rel="manifest" href="manifest.json">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="Caja Fideliza">
+  <link rel="apple-touch-icon" href="../assets/icon-192.png">
+
+  <link rel="stylesheet" href="../styles/variables.css">
+  <link rel="stylesheet" href="../styles/main.css">
+  <link rel="stylesheet" href="../styles/admin.css">
+  <link rel="stylesheet" href="../styles/features.css">
+</head>
+<body>
+  <div id="admin-app" class="admin-layout">
+    <header class="admin-header">
+      <div class="admin-brand">
+        <div id="admin-logo-preview" class="admin-logo-badge">
+          <span class="admin-logo-fallback">FC</span>
+        </div>
+        <div>
+          <h1 id="header-business-name" class="admin-title">FidelizaCard</h1>
+          <p class="admin-subtitle">Operativa de Caja</p>
+        </div>
+      </div>
+      <a id="btn-preview-card" href="../index.html" class="btn-preview-card" title="Abrir Tarjeta de Cliente">
+        <span>Ver Tarjeta</span>
+      </a>
+    </header>
+
+    <nav class="admin-tabs" aria-label="Secciones del panel">
+      <button type="button" class="tab-btn active" data-tab="tab-dynamic-qr">Dinamico</button>
+      <button type="button" class="tab-btn" data-tab="tab-delivery">Delivery</button>
+      <button type="button" class="tab-btn" data-tab="tab-restore">Reponer</button>
+      <button type="button" class="tab-btn" data-tab="tab-qr">QR Fijo</button>
+      <button type="button" class="tab-btn" data-tab="tab-demo">Demo</button>
+    </nav>
+
+    <main class="admin-main">
+      <!-- Seccion 1: QR Dinamico Multi-Sello -->
+      <section id="tab-dynamic-qr" class="tab-content active">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">QR Dinamico de Cobro</h2>
+            <p class="section-desc">Elige la cantidad de sellos segun el consumo en caja. Caduca en 10 minutos.</p>
+          </div>
+
+          <div class="field-group">
+            <label class="field-label">Cantidad de sellos a otorgar</label>
+            <div id="dynamic-stamps-group" class="dyn-stamps-selector">
+              <button type="button" class="dyn-stamp-btn active" data-stamps="1">+1 Sello</button>
+              <button type="button" class="dyn-stamp-btn" data-stamps="2">+2 Sellos</button>
+              <button type="button" class="dyn-stamp-btn" data-stamps="3">+3 Sellos</button>
+            </div>
+          </div>
+
+          <div class="actions-stack">
+            <button type="button" id="btn-generate-dynamic-qr" class="btn-primary">
+              <span>Generar QR de Un Solo Uso</span>
+            </button>
+          </div>
+
+          <div id="dynamic-qr-box" class="qr-display-container hidden">
+            <div id="dynamic-qr-badge" class="dyn-qr-badge">+1 SELLO ACTIVO</div>
+            <div class="qr-canvas-frame">
+              <canvas id="dynamic-qr-canvas" width="220" height="220"></canvas>
+            </div>
+            <p id="dynamic-qr-timer" class="dyn-qr-timer">Valido por 10:00 min</p>
+            <div class="actions-stack">
+              <button type="button" id="btn-refresh-dynamic-qr" class="btn-secondary">
+                <span>Renovar Codigo QR</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 2: Despacho Delivery WhatsApp -->
+      <section id="tab-delivery" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Despacho de Sello Delivery</h2>
+            <p class="section-desc">Envia un sello unico por WhatsApp al confirmar un pedido.</p>
+          </div>
+
+          <form id="delivery-form" class="admin-form">
+            <div class="field-group">
+              <label class="field-label" for="delivery-phone">WhatsApp del Cliente</label>
+              <div class="input-with-prefix">
+                <span class="input-prefix">+51</span>
+                <input
+                  type="tel"
+                  id="delivery-phone"
+                  class="field-input prefix-padding"
+                  placeholder="987654321"
+                  pattern="[0-9]{9}"
+                  inputmode="numeric"
+                  required
+                >
+              </div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="delivery-order-id">Codigo de Boleta o Pedido (Opcional)</label>
+              <input
+                type="text"
+                id="delivery-order-id"
+                class="field-input"
+                placeholder="Ej. PED-102"
+              >
+            </div>
+
+            <div class="actions-stack">
+              <button type="submit" id="btn-send-whatsapp" class="btn-whatsapp">
+                <span>Enviar Sello por WhatsApp</span>
+              </button>
+              <button type="button" id="btn-copy-link" class="btn-secondary">
+                <span>Copiar Enlace Manual</span>
+              </button>
+            </div>
+          </form>
+
+          <div id="delivery-link-preview" class="link-preview-box hidden">
+            <span class="preview-label">Enlace generado:</span>
+            <code id="preview-url-text" class="preview-url"></code>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 3: Reposicion de Sellos Firmada -->
+      <section id="tab-restore" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Reposicion de Sellos</h2>
+            <p class="section-desc">Genera un enlace o QR firmado valido por 10 minutos para restituir sellos.</p>
+          </div>
+
+          <form id="restore-form" class="admin-form">
+            <div class="field-group">
+              <label class="field-label">Cantidad de sellos a restituir</label>
+              <div id="restore-stamps-grid" class="restore-stamps-grid" role="group" aria-label="Cantidad de sellos a restituir"></div>
+            </div>
+
+            <div class="field-group">
+              <label class="field-label" for="restore-phone">WhatsApp del Cliente (Solo para envio remoto)</label>
+              <div class="input-with-prefix">
+                <span class="input-prefix">+51</span>
+                <input
+                  type="tel"
+                  id="restore-phone"
+                  class="field-input prefix-padding"
+                  placeholder="987654321"
+                  pattern="[0-9]{9}"
+                  inputmode="numeric"
+                >
+              </div>
+            </div>
+
+            <div class="actions-stack">
+              <button type="button" id="btn-show-restore-qr" class="btn-primary">
+                <span>Mostrar QR Firmado en Pantalla</span>
+              </button>
+              <button type="button" id="btn-send-restore-whatsapp" class="btn-whatsapp">
+                <span>Enviar por WhatsApp</span>
+              </button>
+              <button type="button" id="btn-copy-restore-link" class="btn-secondary">
+                <span>Copiar Enlace</span>
+              </button>
+            </div>
+          </form>
+
+          <div id="restore-qr-box" class="qr-display-container hidden">
+            <div class="qr-canvas-frame">
+              <canvas id="restore-qr-canvas" width="210" height="210"></canvas>
+            </div>
+            <p id="restore-qr-caption" class="qr-target-text">QR unico valido por 10 minutos</p>
+            <div class="actions-stack">
+              <button type="button" id="btn-hide-restore-qr" class="btn-secondary">
+                <span>Ocultar QR</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 4: QR Mostrador Estatico -->
+      <section id="tab-qr" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Codigo QR de Mostrador</h2>
+            <p class="section-desc">Exhibelo en barra o caja para que el cliente lo escanee al pagar en salon.</p>
+          </div>
+
+          <div class="qr-display-container">
+            <div class="qr-canvas-frame">
+              <canvas id="qr-canvas" width="220" height="220"></canvas>
+            </div>
+            <p class="qr-target-text">Apunta a la tarjeta de tu local (+1 sello)</p>
+          </div>
+
+          <div class="actions-stack">
+            <button type="button" id="btn-download-qr" class="btn-primary">
+              <span>Descargar QR para Imprimir</span>
+            </button>
+          </div>
+
+          <div class="print-guide-card">
+            <h3 class="guide-title">Recomendacion de Impresion</h3>
+            <p class="guide-text">
+              Imprime este codigo en formato A6 (10x15 cm) o adhesivo plastificado para colocarlo junto al POS.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Seccion 5: Simulador Comercial Demo -->
+      <section id="tab-demo" class="tab-content hidden">
+        <div class="admin-card">
+          <div class="card-header">
+            <h2 class="section-title">Demo Comercial Pantalla Completa</h2>
+            <p class="section-desc">Graba videos de venta mostrando la tarjeta real en accion sin afectar datos reales.</p>
+          </div>
+
+          <div id="demo-sim-container"></div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="admin-footer">
+      <p class="footer-text">FidelizaCard Suite Comercial · PWA Caja</p>
+    </footer>
+  </div>
+
+  <div id="toast-container" class="toast-stack" aria-live="polite"></div>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
+
+  <script type="module" src="../scripts/admin.js"></script>
+</body>
+</html>

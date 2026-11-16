@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#030712">
+  <meta name="theme-color" content="#f7f3eb">
   <meta name="description" content="Tarjeta de fidelizacion digital interactiva para clientes">
   <title>FidelizaCard</title>
 
-  <!-- PWA Manifest & Soporte iOS -->
+  <!-- PWA Manifest y Soporte iOS -->
   <link rel="manifest" href="manifest.json">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="FidelizaCard">
   <link rel="apple-touch-icon" href="assets/icon-192.png">
 
@@ -20,17 +20,10 @@
   <link rel="stylesheet" href="styles/main.css">
   <link rel="stylesheet" href="styles/card.css">
   <link rel="stylesheet" href="styles/modals.css">
+  <link rel="stylesheet" href="styles/features.css">
 </head>
 <body>
   <div id="app" class="app-layout">
-    <header class="app-header">
-      <div class="brand-badge">
-        <span class="brand-dot"></span>
-        <span class="brand-name">FidelizaCard</span>
-      </div>
-      <div id="header-actions" class="header-actions"></div>
-    </header>
-
     <main id="main-content" class="main-content">
       <div class="loader-view">
         <div class="spinner"></div>
@@ -38,7 +31,7 @@
     </main>
 
     <footer class="app-footer">
-      <p class="footer-text">Sistema de Sellos Digitales</p>
+      <p class="footer-text">Tus datos se guardan solo en este dispositivo</p>
     </footer>
   </div>
 
