@@ -1,5 +1,5 @@
 /**
- * Libreria de Iconos Vectoriales SVG - FidelizaCard (v2.3)
+ * Libreria de Iconos Vectoriales SVG - FidelizaCard (v2.4)
  * Responsabilidades:
  * - Proveer iconos SVG tematicos para sellos segun el rubro del negocio
  * - Proveer iconos limpios y simetricos de redes sociales y mensajeria WhatsApp
@@ -47,6 +47,9 @@ const STAMP_PATHS = {
   ]
 };
 
+const WHATSAPP_SOLID_PATH =
+  'M12.04 2C6.58 2 2.13 6.45 2.13 11.91c0 1.75.46 3.45 1.32 4.95L2.05 22l5.25-1.38c1.45.79 3.08 1.21 4.74 1.21 5.46 0 9.91-4.45 9.91-9.91C21.95 6.45 17.5 2 12.04 2zm5.82 14.01c-.24.68-1.41 1.3-1.95 1.38-.5.08-1.13.11-1.82-.11-.42-.13-.96-.31-1.65-.61-2.9-1.25-4.79-4.17-4.94-4.36-.14-.19-1.18-1.57-1.18-3s.75-2.13 1.01-2.42c.27-.29.58-.36.78-.36.19 0 .39 0 .56.01.18.01.42-.07.66.5.24.58.83 2.02.9 2.17.07.15.12.32.02.51-.1.19-.15.32-.29.49-.15.17-.31.38-.44.51-.15.14-.3.3-.13.59.17.29.76 1.25 1.63 2.02 1.12 1 2.06 1.31 2.35 1.46.29.15.46.12.63-.07.17-.19.73-.85.92-1.14.19-.29.39-.24.66-.15.27.1 1.7.8 1.99.95.29.14.48.22.56.34.07.12.07.7-.17 1.38z';
+
 const SOCIAL_PATHS = {
   instagram: [
     'M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z',
@@ -59,10 +62,7 @@ const SOCIAL_PATHS = {
   facebook: [
     'M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z'
   ],
-  whatsapp: [
-    'M20.5 11.5a8.5 8.5 0 0 1-12.5 7.5L3.5 20.5l1.5-4.5A8.5 8.5 0 1 1 20.5 11.5z',
-    'M9.2 8.8c.2-.4.5-.4.8-.4h.5c.2 0 .4.1.5.4l.6 1.5c.1.2.1.4-.1.6l-.5.5c.6 1.1 1.5 2 2.6 2.6l.5-.5c.2-.2.4-.2.6-.1l1.5.6c.3.1.4.3.4.5v.5c0 .3 0 .6-.4.8-.6.3-1.9.4-3.7-.5-1.9-.9-3.3-2.5-3.9-4-.6-1.5-.4-2.6-.1-3.2z'
-  ]
+  whatsapp: [WHATSAPP_SOLID_PATH]
 };
 
 const UI_PATHS = {
@@ -76,7 +76,7 @@ const UI_PATHS = {
     'M7 13h4v4H7z',
     'M14 14h3v3'
   ],
-  whatsapp: SOCIAL_PATHS.whatsapp,
+  whatsapp: [WHATSAPP_SOLID_PATH],
   gift: [
     'M20 12v8a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1v-8',
     'M2 7h20v5H2z',
@@ -114,18 +114,25 @@ const UI_PATHS = {
   ]
 };
 
-function buildSvgElement(pathList, className, size, filledIndex) {
+function buildSvgElement(pathList, className, size, isSolidFill) {
   const svg = document.createElementNS(SVG_NS, 'svg');
   const px = size ? String(size) : '20';
   svg.setAttribute('viewBox', '0 0 24 24');
   svg.setAttribute('width', px);
   svg.setAttribute('height', px);
-  svg.setAttribute('fill', 'none');
-  svg.setAttribute('stroke', 'currentColor');
-  svg.setAttribute('stroke-width', '2');
-  svg.setAttribute('stroke-linecap', 'round');
-  svg.setAttribute('stroke-linejoin', 'round');
   svg.setAttribute('aria-hidden', 'true');
+
+  if (isSolidFill) {
+    svg.setAttribute('fill', 'currentColor');
+    svg.setAttribute('stroke', 'none');
+  } else {
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.setAttribute('stroke-linecap', 'round');
+    svg.setAttribute('stroke-linejoin', 'round');
+  }
+
   if (className) {
     svg.setAttribute('class', className);
   }
@@ -133,10 +140,6 @@ function buildSvgElement(pathList, className, size, filledIndex) {
   for (let i = 0; i < pathList.length; i++) {
     const pathEl = document.createElementNS(SVG_NS, 'path');
     pathEl.setAttribute('d', pathList[i]);
-    if (filledIndex === i) {
-      pathEl.setAttribute('fill', 'currentColor');
-      pathEl.setAttribute('stroke', 'none');
-    }
     svg.appendChild(pathEl);
   }
 
@@ -146,19 +149,19 @@ function buildSvgElement(pathList, className, size, filledIndex) {
 export function createStampThemeIcon(themeName, className, size) {
   const key = themeName ? String(themeName).toLowerCase() : 'burger';
   const paths = STAMP_PATHS[key] ? STAMP_PATHS[key] : STAMP_PATHS.burger;
-  return buildSvgElement(paths, className, size, -1);
+  return buildSvgElement(paths, className, size, false);
 }
 
 export function createSocialIcon(network, className, size) {
   const key = network ? String(network).toLowerCase() : 'instagram';
   const paths = SOCIAL_PATHS[key] ? SOCIAL_PATHS[key] : SOCIAL_PATHS.instagram;
-  const fillIdx = key === 'whatsapp' ? 1 : -1;
-  return buildSvgElement(paths, className, size, fillIdx);
+  const solid = key === 'whatsapp';
+  return buildSvgElement(paths, className, size, solid);
 }
 
 export function createUiIcon(iconName, className, size) {
   const key = iconName ? String(iconName) : 'qr';
   const paths = UI_PATHS[key] ? UI_PATHS[key] : UI_PATHS.qr;
-  const fillIdx = key === 'whatsapp' ? 1 : -1;
-  return buildSvgElement(paths, className, size, fillIdx);
+  const solid = key === 'whatsapp';
+  return buildSvgElement(paths, className, size, solid);
 }

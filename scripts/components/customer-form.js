@@ -1,15 +1,14 @@
 /**
- * Componente Formulario de Registro de Cliente - FidelizaCard (v2.2)
+ * Componente Formulario de Registro de Cliente - FidelizaCard (v2.4)
  * Responsabilidades:
  * - Mostrar identidad visual del negocio (logo y nombre) en el alta inicial
  * - Captura y validacion de datos con mascara DD-MM-AAAA
- * - Asignacion automatica de sello de bienvenida si no hay enlace entrante
+ * - Delegar el 1er sello de bienvenida exclusivamente al QR de bienvenida/mostrador
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
 import { createElement, showToast, triggerHaptic } from '../utils/dom.js';
-import { playStampSound } from '../utils/sound-fx.js';
-import { getConfig, saveCustomer, addStamp } from '../services/storage-service.js';
+import { getConfig, saveCustomer } from '../services/storage-service.js';
 
 export function renderCustomerForm(container, onComplete) {
   if (!container) {
@@ -209,6 +208,9 @@ function parseAndValidateBirthDate(maskedValue) {
 
 function hasIncomingStampAction() {
   const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.has('welcome')) {
+    return true;
+  }
   if (urlParams.has('dyn')) {
     return true;
   }
@@ -274,12 +276,10 @@ function handleSubmit(formElement, onComplete) {
 
   const incomingWithAction = hasIncomingStampAction();
 
-  if (!incomingWithAction) {
-    addStamp(true);
-    playStampSound();
-    showToast('¡Bienvenido! Tienes tu 1er sello de regalo', 'success');
+  if (incomingWithAction) {
+    showToast('¡Tarjeta activada! Aplicando tu sello...', 'info');
   } else {
-    showToast('¡Tarjeta activada! Aplicando tus sellos...', 'info');
+    showToast('¡Tarjeta activada! Escanea un QR en caja para sumar sellos', 'success');
   }
 
   triggerHaptic(50);

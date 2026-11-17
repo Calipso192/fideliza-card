@@ -1,10 +1,10 @@
 /**
- * Operaciones Secundarias del Panel Admin - FidelizaCard (v2.2)
+ * Operaciones Secundarias del Panel Admin - FidelizaCard (v2.4)
  * Responsabilidades:
  * - Despacho delivery por WhatsApp (?claim=PED-XXX) y confirmacion visual al copiar
  * - Cuadricula tactil de reposicion de sellos segun targetStamps (sin select nativo)
  * - Reposicion firmada con token unico y caducidad de 10 min (?rst=&s=&exp=)
- * - Renderizado y descarga PNG del codigo QR fijo de mostrador
+ * - Renderizado y descarga de Afiche A4, Tarjeta A6 y QR de bienvenida (?welcome=1)
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
@@ -12,6 +12,7 @@ import { qs, createElement, showToast, triggerHaptic } from '../utils/dom.js';
 import { createUiIcon } from '../utils/icons.js';
 import { getBusinessConfig } from '../config.js';
 import { renderQRCode, downloadQRCode } from '../utils/qr-generator.js';
+import { generateAndDownloadPoster } from '../utils/poster-generator.js';
 
 function decorateSecondaryButton(btn, iconName, labelText) {
   if (!btn) {
@@ -241,12 +242,18 @@ export function setupStampsRestore(getBaseClientUrl) {
 
 export function setupCounterQr(getBaseClientUrl) {
   const canvas = qs('#qr-canvas');
-  const downloadBtn = qs('#btn-download-qr');
+  const downloadA4Btn = qs('#btn-download-poster-a4');
+  const downloadA6Btn = qs('#btn-download-poster-a6');
+  const downloadQrBtn = qs('#btn-download-qr');
   const tabQrBtn = qs('[data-tab="tab-qr"]');
+
+  function getWelcomeQrUrl() {
+    return getBaseClientUrl() + '?welcome=1';
+  }
 
   function drawCounter() {
     if (canvas) {
-      renderQRCode(canvas, getBaseClientUrl() + '?scan=1');
+      renderQRCode(canvas, getWelcomeQrUrl());
     }
   }
 
@@ -256,8 +263,29 @@ export function setupCounterQr(getBaseClientUrl) {
       setTimeout(drawCounter, 50);
     });
   }
-  if (downloadBtn) {
-    downloadBtn.addEventListener('click', function () {
+
+  if (downloadA4Btn) {
+    downloadA4Btn.addEventListener('click', function () {
+      triggerHaptic(50);
+      showToast('Generando Afiche A4 en alta resolucion...', 'info');
+      generateAndDownloadPoster('A4', getWelcomeQrUrl()).then(function () {
+        showToast('Afiche A4 descargado', 'success');
+      });
+    });
+  }
+
+  if (downloadA6Btn) {
+    downloadA6Btn.addEventListener('click', function () {
+      triggerHaptic(50);
+      showToast('Generando Tarjeta A6 para mostrador...', 'info');
+      generateAndDownloadPoster('A6', getWelcomeQrUrl()).then(function () {
+        showToast('Tarjeta A6 descargada', 'success');
+      });
+    });
+  }
+
+  if (downloadQrBtn) {
+    downloadQrBtn.addEventListener('click', function () {
       if (!canvas) {
         return;
       }
@@ -266,8 +294,8 @@ export function setupCounterQr(getBaseClientUrl) {
       const safeName = config.name
         ? config.name.toLowerCase().replace(/[^a-z0-9]/g, '-')
         : 'fidelizacard';
-      downloadQRCode(canvas, 'qr-mostrador-' + safeName + '.png');
-      showToast('Descargando imagen QR para acrilico', 'success');
+      downloadQRCode(canvas, 'qr-bienvenida-' + safeName + '.png');
+      showToast('Descargando imagen QR de bienvenida', 'success');
     });
   }
 }

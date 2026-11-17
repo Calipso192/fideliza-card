@@ -1,10 +1,10 @@
 /**
- * Componente Tarjeta Wallet Pass - FidelizaCard (v2.2)
+ * Componente Tarjeta Wallet Pass - FidelizaCard (v2.4)
  * Responsabilidades:
- * - Cabecera interna de marca con logotipo (46px) y nombre del negocio
+ * - Banner superior de marca con colores corporativos del local, logotipo y ciclo
  * - Talon inferior estilo Wallet con titular (MIEMBRO) y sellos sin telefono
+ * - Mensaje dinamico de progresion de sellos y premio en capsula inferior
  * - Grilla de sellos vectoriales tematicos y fila de acciones tactiles sin scroll
- * - Disparador post-canje de resena en Google Maps e iconos SVG de redes
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
@@ -117,6 +117,20 @@ function buildBrandHeader(config, currentCycle) {
   return header;
 }
 
+function buildDynamicProgressLabel(currentStamps, targetStamps) {
+  const remaining = Math.max(0, targetStamps - currentStamps);
+  if (remaining === 0) {
+    return '¡META COMPLETADA! RECLAMA TU PREMIO:';
+  }
+  if (remaining === 1) {
+    return '¡A SOLO 1 SELLO DE TU PREMIO GRATIS!';
+  }
+  if (currentStamps === 0) {
+    return 'JUNTA ' + targetStamps + ' SELLOS PARA GANAR:';
+  }
+  return 'TE FALTAN ' + remaining + ' SELLOS PARA GANAR:';
+}
+
 function buildPassBottom(customer, config, currentStamps, targetStamps) {
   const bottom = createElement('div', { className: 'pass-bottom-section' });
   bottom.appendChild(createElement('div', { className: 'pass-divider' }));
@@ -150,7 +164,7 @@ function buildPassBottom(customer, config, currentStamps, targetStamps) {
   const rewardCapsule = createElement('div', { className: 'reward-capsule' });
   rewardCapsule.appendChild(createElement('span', {
     className: 'reward-capsule-tag',
-    textContent: 'PREMIO AL COMPLETAR'
+    textContent: buildDynamicProgressLabel(currentStamps, targetStamps)
   }));
   rewardCapsule.appendChild(createElement('span', {
     className: 'reward-capsule-name',

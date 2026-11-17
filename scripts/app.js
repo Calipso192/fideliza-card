@@ -1,9 +1,9 @@
 /**
- * Orquestador principal de la aplicacion Cliente - FidelizaCard (v2.2)
+ * Orquestador principal de la aplicacion Cliente - FidelizaCard (v2.4)
  * Responsabilidades:
  * - Aplicar la paleta cromatica del negocio al iniciar la vista
  * - Validar y activar el Modo Demo a pantalla completa solo si fue autorizado desde Caja
- * - Montar tarjeta Wallet Pass o formulario de registro sobre #main-content
+ * - Validar QR de bienvenida (?welcome=1) solo para usuarios recien registrados
  * - Procesar QR dinamico (?dyn=), reposicion firmada (?rst=), delivery (?claim=) y mostrador (?scan=)
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
@@ -158,6 +158,7 @@ function extractSearchParams(rawInput) {
 
 function processUrlParameters(rawInput, isFromBrowserUrl, isFreshSignup) {
   const urlParams = extractSearchParams(rawInput);
+  const isWelcomeQr = urlParams.has('welcome');
   const dynToken = urlParams.get('dyn');
   const rstToken = urlParams.get('rst');
   const stampsParam = urlParams.get('s');
@@ -173,7 +174,18 @@ function processUrlParameters(rawInput, isFromBrowserUrl, isFreshSignup) {
   let stateUpdated = false;
   let recognizedParam = false;
 
-  if (dynToken) {
+  if (isWelcomeQr) {
+    recognizedParam = true;
+    if (isFreshSignup) {
+      const res = addStamp(true);
+      if (res.success) {
+        notifyStampSuccess(res, '¡Bienvenido! Recibiste tu 1er sello de regalo');
+        stateUpdated = true;
+      }
+    } else {
+      showToast('Ya tienes tu tarjeta activa. Pide el QR de caja para sumar sellos.', 'info');
+    }
+  } else if (dynToken) {
     recognizedParam = true;
     const count = stampsParam ? parseInt(stampsParam, 10) : 1;
     const res = claimDynamicQr(dynToken, count, expParam);

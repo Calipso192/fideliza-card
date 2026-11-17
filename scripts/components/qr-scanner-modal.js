@@ -1,10 +1,10 @@
 /**
- * Modal de Escaner QR Interno - FidelizaCard (v2.0)
+ * Modal de Escaner QR Interno - FidelizaCard (v2.4)
  * Responsabilidades:
- * - Activar camara trasera nativa dentro de la PWA sin abrir navegador externo
- * - Detectar codigos QR en tiempo real con BarcodeDetector API
+ * - Activar camara trasera nativa dentro del gesto tactil (compatible con iOS Safari)
+ * - Aplicar fallback progresivo de constraints de video para iPhone y Android
+ * - Detectar codigos QR en tiempo real con BarcodeDetector API o enlace manual
  * - Liberar pistas de video de forma segura al cerrar o detectar codigo
- * - Proveer respaldo de pegado manual para dispositivos sin BarcodeDetector
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
 
@@ -44,13 +44,15 @@ export function openQrScannerModal(onDecoded) {
   const body = createElement('div', { className: 'modal-body' });
 
   const viewport = createElement('div', { className: 'scanner-viewport' });
-  const videoEl = createElement('video', {
-    className: 'scanner-video',
-    playsinline: 'true',
-    muted: 'true'
-  });
-  videoEl.setAttribute('autoplay', 'true');
-  videoEl.setAttribute('playsinline', 'true');
+  const videoEl = document.createElement('video');
+  videoEl.className = 'scanner-video';
+  videoEl.autoplay = true;
+  videoEl.muted = true;
+  videoEl.playsInline = true;
+  videoEl.setAttribute('autoplay', '');
+  videoEl.setAttribute('muted', '');
+  videoEl.setAttribute('playsinline', '');
+  videoEl.setAttribute('webkit-playsinline', 'true');
 
   const frameOverlay = createElement('div', { className: 'scanner-frame-overlay' });
   const laserLine = createElement('div', { className: 'scanner-laser-line' });
@@ -61,7 +63,20 @@ export function openQrScannerModal(onDecoded) {
 
   const statusText = createElement('p', {
     className: 'scanner-status-text',
-    textContent: 'Iniciando camara trasera...'
+    textContent: 'Solicitando permiso de camara...'
+  });
+
+  const retryBtn = createElement('button', {
+    type: 'button',
+    className: 'btn-secondary hidden',
+    textContent: 'Reintentar Permiso de Camara'
+  });
+
+  retryBtn.addEventListener('click', function () {
+    triggerHaptic(30);
+    retryBtn.classList.add('hidden');
+    statusText.textContent = 'Solicitando permiso de camara...';
+    requestCameraStream(videoEl, statusText, retryBtn, onDecoded);
   });
 
   const manualBox = createElement('div', { className: 'scanner-manual-box' });
@@ -88,13 +103,14 @@ export function openQrScannerModal(onDecoded) {
 
   body.appendChild(viewport);
   body.appendChild(statusText);
+  body.appendChild(retryBtn);
   body.appendChild(manualBox);
 
   dialog.appendChild(header);
   dialog.appendChild(body);
   modalContainer.appendChild(dialog);
 
-  startCameraScanner(videoEl, statusText, onDecoded);
+  requestCameraStream(videoEl, statusText, retryBtn, onDecoded);
 }
 
 export function closeQrScannerModal() {
@@ -132,38 +148,86 @@ function handleDetection(rawValue, onDecoded) {
   }
 }
 
-function startCameraScanner(videoEl, statusEl, onDecoded) {
+function getCameraErrorMessage(err) {
+  const errName = err ? (err.name ? String(err.name) : '') : '';
+  if (errName === 'NotAllowedError') {
+    return 'Permiso denegado. En iPhone ve a Ajustes > Safari > Camara y permite el acceso, o escanea directo desde la app Camara.';
+  }
+  if (errName === 'PermissionDeniedError') {
+    return 'Permiso de camara bloqueado. Habilitalo en la configuracion del navegador.';
+  }
+  if (errName === 'NotFoundError') {
+    return 'No se detecto ninguna camara trasera disponible.';
+  }
+  if (errName === 'NotReadableError') {
+    return 'La camara esta ocupada por otra aplicacion. Cierrala e intenta de nuevo.';
+  }
+  return 'No se pudo iniciar la camara. Usa la app Camara de tu iPhone o pega el enlace abajo.';
+}
+
+function attachStreamToVideo(stream, videoEl, statusEl, onDecoded) {
+  activeMediaStream = stream;
+  videoEl.srcObject = stream;
+
+  const playPromise = videoEl.play();
+  if (playPromise) {
+    playPromise.catch(function () {});
+  }
+
+  isScanningActive = true;
+
+  if ('BarcodeDetector' in window) {
+    statusEl.textContent = 'Apunta al codigo QR de la pantalla de caja';
+    runBarcodeLoop(videoEl, statusEl, onDecoded);
+  } else {
+    statusEl.textContent = 'En iOS puedes escanear directo con la app Camara de tu iPhone o pegar el enlace abajo.';
+  }
+}
+
+function requestCameraStream(videoEl, statusEl, retryBtn, onDecoded) {
   if (!navigator.mediaDevices) {
-    statusEl.textContent = 'Camara no disponible en este navegador. Usa el campo inferior.';
+    statusEl.textContent = 'Camara web no disponible (requiere HTTPS). Escanea con la app Camara de tu celular.';
     return;
   }
   if (!navigator.mediaDevices.getUserMedia) {
-    statusEl.textContent = 'Permiso de camara no soportado. Usa el campo inferior.';
+    statusEl.textContent = 'Tu navegador no soporta camara integrada. Usa la app Camara de tu celular.';
     return;
   }
 
-  const constraints = {
+  const primaryConstraints = {
     audio: false,
     video: {
-      facingMode: { ideal: 'environment' }
+      facingMode: 'environment'
     }
   };
 
-  navigator.mediaDevices.getUserMedia(constraints).then(function (stream) {
-    activeMediaStream = stream;
-    videoEl.srcObject = stream;
-    videoEl.play().catch(function () {});
-    isScanningActive = true;
+  navigator.mediaDevices
+    .getUserMedia(primaryConstraints)
+    .then(function (stream) {
+      attachStreamToVideo(stream, videoEl, statusEl, onDecoded);
+    })
+    .catch(function (firstErr) {
+      const errName = firstErr ? (firstErr.name ? String(firstErr.name) : '') : '';
+      if (errName === 'OverconstrainedError') {
+        navigator.mediaDevices
+          .getUserMedia({ audio: false, video: true })
+          .then(function (fallbackStream) {
+            attachStreamToVideo(fallbackStream, videoEl, statusEl, onDecoded);
+          })
+          .catch(function (secondErr) {
+            statusEl.textContent = getCameraErrorMessage(secondErr);
+            if (retryBtn) {
+              retryBtn.classList.remove('hidden');
+            }
+          });
+        return;
+      }
 
-    if ('BarcodeDetector' in window) {
-      statusEl.textContent = 'Apunta al codigo QR de la pantalla de caja';
-      runBarcodeLoop(videoEl, statusEl, onDecoded);
-    } else {
-      statusEl.textContent = 'Tu navegador no soporta lectura automatica. Usa el enlace manual abajo.';
-    }
-  }).catch(function () {
-    statusEl.textContent = 'No se pudo acceder a la camara. Revisa permisos o pega el enlace.';
-  });
+      statusEl.textContent = getCameraErrorMessage(firstErr);
+      if (retryBtn) {
+        retryBtn.classList.remove('hidden');
+      }
+    });
 }
 
 function runBarcodeLoop(videoEl, statusEl, onDecoded) {
@@ -171,7 +235,7 @@ function runBarcodeLoop(videoEl, statusEl, onDecoded) {
   try {
     detector = new window.BarcodeDetector({ formats: ['qr_code'] });
   } catch (err) {
-    statusEl.textContent = 'Escaneo automatico no disponible. Usa el campo inferior.';
+    statusEl.textContent = 'Escaneo automatico no disponible. Usa la app Camara o pega el enlace.';
     return;
   }
 
@@ -180,25 +244,28 @@ function runBarcodeLoop(videoEl, statusEl, onDecoded) {
       return;
     }
     if (videoEl.readyState >= 2) {
-      detector.detect(videoEl).then(function (barcodes) {
-        if (!isScanningActive) {
-          return;
-        }
-        if (barcodes) {
-          if (barcodes.length > 0) {
-            const firstCode = barcodes[0].rawValue;
-            if (firstCode) {
-              handleDetection(firstCode, onDecoded);
-              return;
+      detector
+        .detect(videoEl)
+        .then(function (barcodes) {
+          if (!isScanningActive) {
+            return;
+          }
+          if (barcodes) {
+            if (barcodes.length > 0) {
+              const firstCode = barcodes[0].rawValue;
+              if (firstCode) {
+                handleDetection(firstCode, onDecoded);
+                return;
+              }
             }
           }
-        }
-        scanLoopTimer = setTimeout(scanFrame, 260);
-      }).catch(function () {
-        if (isScanningActive) {
-          scanLoopTimer = setTimeout(scanFrame, 400);
-        }
-      });
+          scanLoopTimer = setTimeout(scanFrame, 260);
+        })
+        .catch(function () {
+          if (isScanningActive) {
+            scanLoopTimer = setTimeout(scanFrame, 400);
+          }
+        });
     } else {
       scanLoopTimer = setTimeout(scanFrame, 200);
     }

@@ -1,5 +1,5 @@
 /**
- * Service Worker Aislado App Admin - FidelizaCard (v2.2 PWA Dual)
+ * Service Worker Aislado App Admin - FidelizaCard (v2.4 PWA Dual)
  * Responsabilidades:
  * - Cacheo independiente dentro del alcance /admin/
  * - Estrategia Cache-First con actualizacion en segundo plano
@@ -7,7 +7,7 @@
  * Reglas estrictas: Vanilla JS puro, cero barras verticales, maximo 300 lineas
  */
 
-const ADMIN_CACHE_NAME = 'fideliza-admin-v4';
+const ADMIN_CACHE_NAME = 'fideliza-admin-v5';
 
 const ADMIN_ASSETS = [
   './',
@@ -25,6 +25,7 @@ const ADMIN_ASSETS = [
   '../scripts/utils/dom.js',
   '../scripts/utils/icons.js',
   '../scripts/utils/qr-generator.js',
+  '../scripts/utils/poster-generator.js',
   '../scripts/utils/theme-applier.js',
   '../assets/icon-192.png',
   '../assets/icon-512.png'

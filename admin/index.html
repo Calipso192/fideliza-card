@@ -192,31 +192,37 @@
         </div>
       </section>
 
-      <!-- Seccion 4: QR Mostrador Estatico -->
+      <!-- Seccion 4: QR Bienvenida y Afiches Imprimibles -->
       <section id="tab-qr" class="tab-content hidden">
         <div class="admin-card">
           <div class="card-header">
-            <h2 class="section-title">Codigo QR de Mostrador</h2>
-            <p class="section-desc">Exhibelo en barra o caja para que el cliente lo escanee al pagar en salon.</p>
+            <h2 class="section-title">QR de Bienvenida y Afiche</h2>
+            <p class="section-desc">Otorga el 1er sello de regalo solo a clientes nuevos al registrarse.</p>
           </div>
 
           <div class="qr-display-container">
             <div class="qr-canvas-frame">
               <canvas id="qr-canvas" width="220" height="220"></canvas>
             </div>
-            <p class="qr-target-text">Apunta a la tarjeta de tu local (+1 sello)</p>
+            <p class="qr-target-text">QR de alta inicial (+1 sello solo en primer registro)</p>
           </div>
 
           <div class="actions-stack">
-            <button type="button" id="btn-download-qr" class="btn-primary">
-              <span>Descargar QR para Imprimir</span>
+            <button type="button" id="btn-download-poster-a4" class="btn-primary">
+              <span>Descargar Afiche A4 con Logo</span>
+            </button>
+            <button type="button" id="btn-download-poster-a6" class="btn-secondary">
+              <span>Descargar Tarjeta A6 Mostrador</span>
+            </button>
+            <button type="button" id="btn-download-qr" class="btn-secondary">
+              <span>Descargar Solo Codigo QR</span>
             </button>
           </div>
 
           <div class="print-guide-card">
-            <h3 class="guide-title">Recomendacion de Impresion</h3>
+            <h3 class="guide-title">Uso en Salon y Mesas</h3>
             <p class="guide-text">
-              Imprime este codigo en formato A6 (10x15 cm) o adhesivo plastificado para colocarlo junto al POS.
+              Coloca el Afiche A4 o Tarjeta A6 en mostrador para captar clientes nuevos. Para sumar sellos en compras siguientes, usa la pestana Dinamico.
             </p>
           </div>
         </div>

@@ -1,8 +1,8 @@
 /**
- * Hoja de estilos Wallet Pass - FidelizaCard (v2.3)
+ * Hoja de estilos Wallet Pass - FidelizaCard (v2.4)
  * Responsabilidades:
- * - Cabecera de marca con logotipo (46px) y nombre completo del negocio sin recortes
- * - Talon inferior estilo Wallet con titular (MIEMBRO) y contador de sellos sin telefono
+ * - Banner superior de marca con colores corporativos, logotipo y ciclo
+ * - Talon inferior estilo Wallet con titular (MIEMBRO) y contador de sellos
  * - Grilla de sellos vectoriales tematicos y fila de acciones tactiles sin scroll
  */
 
@@ -21,9 +21,10 @@
   background: var(--bg-card);
   border: 1px solid var(--border-card);
   border-radius: var(--radius-lg);
-  padding: 16px 16px 14px 16px;
+  padding: 0 16px 14px 16px;
   box-shadow: var(--shadow-card);
   position: relative;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
@@ -34,9 +35,12 @@
 .card-brand-header {
   display: flex;
   justify-content: space-between;
-  align-items: flex-start;
+  align-items: center;
   gap: 8px;
-  margin-bottom: 10px;
+  margin: 0 -16px 10px -16px;
+  padding: 13px 16px;
+  background: var(--brand-banner-bg, var(--color-gold));
+  color: var(--brand-banner-text, #fffdf9);
 }
 
 .card-brand-identity {
@@ -48,24 +52,24 @@
 }
 
 .card-brand-logo {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
   object-fit: cover;
-  border: 1px solid var(--border-card);
-  background: var(--bg-primary);
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  background: var(--bg-card);
   box-shadow: var(--shadow-sm);
   flex-shrink: 0;
 }
 
 .card-brand-fallback {
-  width: 46px;
-  height: 46px;
+  width: 44px;
+  height: 44px;
   border-radius: var(--radius-md);
-  background: var(--color-stamp-fill);
-  border: 1.5px solid var(--color-gold);
-  color: var(--color-gold);
-  font-size: 1.05rem;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1.5px solid rgba(255, 255, 255, 0.45);
+  color: inherit;
+  font-size: 1.02rem;
   font-weight: 800;
   display: flex;
   align-items: center;
@@ -83,7 +87,7 @@
 .card-business-name {
   font-size: 0.96rem;
   font-weight: 800;
-  color: var(--text-primary);
+  color: inherit;
   letter-spacing: -0.01em;
   line-height: 1.18;
   word-break: break-word;
@@ -94,13 +98,14 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.06em;
-  color: var(--color-gold);
+  color: inherit;
+  opacity: 0.85;
 }
 
 .badge-cycle {
-  background: var(--bg-surface);
-  border: 1px solid var(--border-card);
-  color: var(--color-gold);
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  color: inherit;
   font-size: 0.66rem;
   font-weight: 800;
   padding: 4px 9px;
@@ -108,7 +113,6 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   flex-shrink: 0;
-  margin-top: 2px;
 }
 
 .stamps-grid {
