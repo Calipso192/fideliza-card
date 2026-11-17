@@ -1,8 +1,8 @@
 /**
- * Generador de Afiche Imprimible A4 y A6 - FidelizaCard (v2.4)
+ * Generador de Afiche Imprimible A4 y A6 - FidelizaCard (v2.5)
  * Responsabilidades:
  * - Componer afiche publicitario en alta resolucion (300 DPI aprox) en Canvas
- * - Incluir paleta de marca, logotipo, frase comercial, QR nitido y premio
+ * - Distribuir verticalmente logo, titular, QR, capsula de premio y pie sin solapes
  * - Exportar descarga directa en PNG listo para imprimir o plastificar
  * Reglas estrictas: Vanilla JS modular, cero barras verticales, maximo 300 lineas
  */
@@ -95,6 +95,7 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
   const bgPrimary = theme.bgPrimary ? theme.bgPrimary : '#f7f3eb';
   const bgCard = theme.bgCard ? theme.bgCard : '#fffdf9';
   const accent = theme.accent ? theme.accent : '#c4623d';
+  const bannerBg = theme.bannerBg ? theme.bannerBg : accent;
   const stampFill = theme.stampFill ? theme.stampFill : '#f4e4ce';
   const textPrimary = theme.textPrimary ? theme.textPrimary : '#2c221a';
   const textSecondary = theme.textSecondary ? theme.textSecondary : '#6e5d4f';
@@ -109,7 +110,7 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
     logoSrc = config.logo.indexOf('http') === 0 ? config.logo : '../' + config.logo;
   }
 
-  const qrSize = Math.round(w * 0.44);
+  const qrSize = Math.round(w * 0.39);
   const qrEndpoint =
     'https://api.qrserver.com/v1/create-qr-code/?size=' +
     qrSize +
@@ -127,15 +128,15 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
   ctx.fillRect(0, 0, w, h);
 
   // 2. Franja superior de marca
-  const headerH = Math.round(h * 0.21);
-  ctx.fillStyle = accent;
+  const headerH = Math.round(h * 0.19);
+  ctx.fillStyle = bannerBg;
   ctx.fillRect(0, 0, w, headerH);
 
   // 3. Tarjeta central elevada
   const marginX = Math.round(w * 0.08);
   const cardTop = Math.round(headerH * 0.56);
   const cardW = w - marginX * 2;
-  const cardH = h - cardTop - Math.round(h * 0.06);
+  const cardH = h - cardTop - Math.round(h * 0.055);
 
   ctx.save();
   ctx.shadowColor = 'rgba(0, 0, 0, 0.14)';
@@ -152,7 +153,7 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
   ctx.stroke();
 
   // 4. Medallon circular para el logotipo
-  const logoRadius = Math.round(w * 0.095);
+  const logoRadius = Math.round(w * 0.088);
   const logoCenterY = cardTop;
 
   ctx.save();
@@ -184,51 +185,51 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
     ctx.arc(cx, logoCenterY, logoRadius, 0, Math.PI * 2);
     ctx.fill();
     ctx.fillStyle = accent;
-    ctx.font = 'bold ' + Math.round(w * 0.06) + 'px sans-serif';
+    ctx.font = 'bold ' + Math.round(w * 0.056) + 'px sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(bizName.slice(0, 2), cx, logoCenterY);
   }
 
   // 5. Nombre del negocio y titular comercial
-  let cursorY = logoCenterY + logoRadius + Math.round(h * 0.048);
+  let cursorY = logoCenterY + logoRadius + Math.round(h * 0.042);
   ctx.textAlign = 'center';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = accent;
-  ctx.font = '800 ' + Math.round(w * 0.036) + 'px sans-serif';
+  ctx.font = '800 ' + Math.round(w * 0.034) + 'px sans-serif';
   ctx.fillText(bizName, cx, cursorY);
 
-  cursorY += Math.round(h * 0.056);
+  cursorY += Math.round(h * 0.048);
   ctx.fillStyle = textPrimary;
-  ctx.font = '900 ' + Math.round(w * 0.052) + 'px sans-serif';
+  ctx.font = '900 ' + Math.round(w * 0.048) + 'px sans-serif';
   cursorY = wrapCenteredText(
     ctx,
     '¡ESCANEA Y GANA TU 1ER SELLO GRATIS!',
     cx,
     cursorY,
     cardW - 90,
-    Math.round(w * 0.064)
+    Math.round(w * 0.058)
   );
 
-  cursorY += Math.round(h * 0.012);
+  cursorY += Math.round(h * 0.008);
   ctx.fillStyle = textSecondary;
-  ctx.font = '600 ' + Math.round(w * 0.028) + 'px sans-serif';
+  ctx.font = '600 ' + Math.round(w * 0.026) + 'px sans-serif';
   cursorY = wrapCenteredText(
     ctx,
     'Activa tu tarjeta digital sin descargar apps ni llenar papeles.',
     cx,
     cursorY,
     cardW - 110,
-    Math.round(w * 0.038)
+    Math.round(w * 0.035)
   );
 
   // 6. Marco blanco del codigo QR
-  const qrFramePad = Math.round(w * 0.026);
+  const qrFramePad = Math.round(w * 0.024);
   const qrBoxSize = qrSize + qrFramePad * 2;
   const qrBoxX = cx - qrBoxSize / 2;
-  const qrBoxY = cursorY + Math.round(h * 0.024);
+  const qrBoxY = cursorY + Math.round(h * 0.02);
 
-  drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, Math.round(w * 0.028));
+  drawRoundedRect(ctx, qrBoxX, qrBoxY, qrBoxSize, qrBoxSize, Math.round(w * 0.026));
   ctx.fillStyle = '#ffffff';
   ctx.fill();
   ctx.lineWidth = 5;
@@ -239,17 +240,17 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
     ctx.drawImage(qrImg, qrBoxX + qrFramePad, qrBoxY + qrFramePad, qrSize, qrSize);
   } else {
     ctx.fillStyle = textSecondary;
-    ctx.font = '700 ' + Math.round(w * 0.026) + 'px sans-serif';
+    ctx.font = '700 ' + Math.round(w * 0.025) + 'px sans-serif';
     ctx.fillText('Verifica tu conexion para generar QR', cx, qrBoxY + qrBoxSize / 2);
   }
 
   // 7. Capsula inferior de recompensa
-  const rewardBoxY = qrBoxY + qrBoxSize + Math.round(h * 0.038);
+  const rewardBoxY = qrBoxY + qrBoxSize + Math.round(h * 0.032);
   const rewardBoxW = cardW - Math.round(w * 0.1);
   const rewardBoxX = cx - rewardBoxW / 2;
-  const rewardBoxH = Math.round(h * 0.13);
+  const rewardBoxH = Math.round(h * 0.115);
 
-  drawRoundedRect(ctx, rewardBoxX, rewardBoxY, rewardBoxW, rewardBoxH, Math.round(w * 0.024));
+  drawRoundedRect(ctx, rewardBoxX, rewardBoxY, rewardBoxW, rewardBoxH, Math.round(w * 0.022));
   ctx.fillStyle = stampFill;
   ctx.fill();
   ctx.lineWidth = 3;
@@ -257,7 +258,7 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
   ctx.stroke();
 
   ctx.fillStyle = accent;
-  ctx.font = '800 ' + Math.round(w * 0.024) + 'px sans-serif';
+  ctx.font = '800 ' + Math.round(w * 0.023) + 'px sans-serif';
   ctx.fillText(
     'JUNTA ' + targetStamps + ' SELLOS Y LLÉVATE GRATIS:',
     cx,
@@ -265,22 +266,22 @@ export async function generateAndDownloadPoster(formatKey, qrUrl) {
   );
 
   ctx.fillStyle = textPrimary;
-  ctx.font = '900 ' + Math.round(w * 0.034) + 'px sans-serif';
+  ctx.font = '900 ' + Math.round(w * 0.033) + 'px sans-serif';
   wrapCenteredText(
     ctx,
     rewardText,
     cx,
-    rewardBoxY + Math.round(rewardBoxH * 0.72),
+    rewardBoxY + Math.round(rewardBoxH * 0.74),
     rewardBoxW - 48,
-    Math.round(w * 0.04)
+    Math.round(w * 0.038)
   );
 
-  // 8. Pie de instrucciones rapidas
-  const footerY = cardTop + cardH - Math.round(h * 0.028);
+  // 8. Pie de instrucciones rapidas separado debajo de la capsula
+  const footerY = rewardBoxY + rewardBoxH + Math.round(h * 0.034);
   ctx.fillStyle = textSecondary;
-  ctx.font = '700 ' + Math.round(w * 0.022) + 'px sans-serif';
+  ctx.font = '700 ' + Math.round(w * 0.02) + 'px sans-serif';
   ctx.fillText(
-    '1. Apunta con la camara de tu celular   ·   2. Registrate   ·   3. Suma sellos en cada visita',
+    '1. Apunta con tu camara   ·   2. Registrate   ·   3. Suma sellos en cada visita',
     cx,
     footerY
   );
